@@ -1,25 +1,32 @@
-# Botanika Pi App — Complete Implementation Prompt
+# Botanika — Phase-by-Phase Build Prompt
 
 Copy everything below this line into a new implementation session. This is the
-authoritative build prompt for the standalone Raspberry Pi version of Botanika.
+authoritative build prompt for Botanika. The Pi implementation is completed and
+proven first; local networking is introduced only in its assigned later phase.
+
+This file supersedes the older phase order in `docs/PI_ARCHITECTURE_AND_ROADMAP.md`
+and other earlier planning notes. Those documents remain useful for Pi module,
+vision, storage, and UI detail, but this file controls implementation order and
+the Phase 7–8 networking/pairing scope.
 
 ---
 
 ## Role and execution mandate
 
-You are the implementation agent for **Botanika**, a standalone native-plant
-field-intelligence kiosk running entirely on one Raspberry Pi 5.
+You are the implementation agent for **Botanika**, a native-plant
+field-intelligence system whose Raspberry Pi 5 is the permanent backend,
+hardware owner, inference device, datastore, and standalone kiosk.
 
 Inspect the repository and the real hardware before changing anything, then
-implement the application phase by phase. Do not stop after producing another
-plan. You are authorized to implement all phases in this document sequentially,
-including application code, tests, local services, and operator documentation.
-Pause only for a real hardware blocker, unavailable required dataset/model, an
-irreversible action, or a product decision that cannot be inferred safely.
+implement the application exactly one phase at a time. Do not stop at planning
+inside the assigned phase: implement it, test it on the real Pi, report the goal
+check, and then stop for handoff. Never begin a later phase because it looks
+more useful or exciting. The user will explicitly hand off the next phase.
 
-Complete and verify each phase before starting the next. Preserve unrelated
-files and existing user work. Keep every claim honest: an unavailable model or
-sensor must produce an explicit unavailable state, never fabricated output.
+Preserve unrelated files and existing user work. Keep every claim honest: an
+unavailable model or sensor must produce an explicit unavailable state, never
+fabricated output. A temporary dummy classifier is allowed only in Phase 4 and
+must be visibly marked as test data.
 
 ## Fixed product boundary
 
@@ -32,14 +39,21 @@ Botanika runs on one Raspberry Pi and uses:
 - Pi-connected microphone and speaker; and
 - touch, keyboard, or mouse input available on the Pi.
 
-The Pi owns the interface, camera, model inference, botanical knowledge,
-discovery library, voice pipeline, data storage, and process supervision. The
-runtime must remain useful without internet access. Serve the web interface only
-on loopback and display it in Chromium kiosk mode on the Pi screen.
+The Pi always owns the camera, model inference, botanical knowledge, discovery
+library, voice pipeline, data storage, and process supervision. The runtime must
+remain useful without internet access.
+
+Phases 0–6 are strictly standalone: serve the interface on loopback and display
+it in Chromium on the Pi screen. Do not create network modes early. Phase 7 may
+turn the Pi into a local Wi-Fi access point and expose the existing application
+over that private link. Phase 8 may add the responsive client, pairing, and
+SOLO/NETWORKED handoff. These later phases must reuse the already-tested Pi
+pipeline rather than creating a second backend.
 
 Do not add cloud inference, accounts, fabricated coordinates, agricultural
-actuation, or mandatory online services. Optional online botanical search is a
-post-release enhancement and is not part of the initial definition of done.
+actuation, internet exposure, or mandatory online services. Optional online
+botanical search is a post-release enhancement and is not part of the initial
+definition of done.
 
 ## Product outcome
 
@@ -97,8 +111,9 @@ Reuse reliable patterns, not application-specific behavior.
 - Store source/license/model provenance.
 - Never invent botanical facts, confidence, conservation state, or location.
 - All destructive actions need confirmation.
-- Every screen must fit the 800×480 target without page-level scrolling.
+- Every Pi screen must fit the 800×480 target without page-level scrolling.
   Scroll only inside designated lists, conversations, or detail panels.
+- Do not add responsive small-screen behavior before Phase 8.
 
 ---
 
@@ -341,16 +356,18 @@ Use two stacked regions as originally requested:
 The toolbar above them contains the title, discovered-species count, category
 filter, and sort control. Keep it approximately `38 px` high.
 
-If a validated Pi positioning source exists, use bundled offline map assets and
-show every saved observation. Markers use the species priority color and a
-redundant icon. Nearby points may be clustered or shown as small highlighted
-regions. Selecting a marker filters/highlights its species row.
+If a validated position source exists, use bundled offline map assets and show
+every saved observation. Before Phase 8 this can only be Pi-connected
+positioning hardware. From Phase 8 onward, an explicitly paired active client
+may supply a position with accuracy and source metadata. Markers use the species
+priority color and a redundant icon. Nearby points may be clustered or shown as
+small highlighted regions. Selecting a marker filters/highlights its species
+row.
 
-The current hardware has no validated positioning source. In that state, the
-top panel remains a useful local coverage summary with category totals and the
-message `Location hardware unavailable — discoveries are still saved.` Do not
-generate coordinates from network information. The list must remain fully
-functional.
+When no validated position is available, the top panel remains a useful local
+coverage summary with category totals and the message `Location unavailable —
+discoveries are still saved.` Do not generate coordinates from network
+information. The list must remain fully functional.
 
 ### Species list rows
 
@@ -419,7 +436,8 @@ detector and show all supported weed boxes simultaneously.
 - Do not persist the camera image or crops after inference.
 - If a validated positioning source is available, store a coordinate-only weed
   observation with latitude, longitude, accuracy, source, timestamp, detector
-  release, class, and confidence.
+  release, class, and confidence. A paired active client may become that source
+  only after Phase 8.
 - If no position is available, continue detection and show the toast:
   `Exact location could not be found. Coordinate collection was skipped.`
 - Never crash because position is unavailable.
@@ -431,9 +449,9 @@ detector and show all supported weed boxes simultaneously.
 
 # Part III — Technical architecture
 
-## 11. Local process topology
+## 11. Process topology by phase
 
-Use these runtime boundaries:
+Phases 0–6 use only the standalone path:
 
 ```text
 Chromium kiosk at 127.0.0.1
@@ -455,9 +473,26 @@ FastAPI modular monolith
         └── local knowledge/vector assets
 ```
 
-Run llama.cpp as a separate local process only if its runtime integration is
-more reliable that way. It still binds to loopback and remains supervised as
-part of the same appliance.
+Phase 7 adds one private local transport boundary without moving any botanical
+logic away from the Pi:
+
+```text
+Pi Wi-Fi access point
+        │
+        ▼
+FastAPI application on the Pi
+        │
+        └── the same camera, inference, data, and library services
+```
+
+Phase 8 adds one paired browser as the active UI. SOLO keeps the Chromium kiosk
+active. NETWORKED makes the paired browser active and turns the Pi screen into a
+compact connection/status console. There is still one backend and one active
+controller.
+
+Run llama.cpp only in Phase 9 and only if time remains. It may be a separate
+local process when that integration is more reliable, but remains supervised as
+part of the same Pi appliance.
 
 ## 12. Backend module ownership
 
@@ -498,6 +533,10 @@ Organize the React application around:
 - local preferences only; and
 - exact InnoHack-derived theme tokens and 800×480 layout rules.
 
+Do not implement alternate viewport layouts through Phase 6. In Phase 8, add a
+compact portrait layout for the paired browser while keeping the Pi’s 800×480
+layout unchanged.
+
 The frontend is not the botanical source of truth and does not perform
 authoritative persistence.
 
@@ -518,9 +557,15 @@ exact path names may be refined, but cover:
 - application diagnostics suitable for the local UI.
 
 Use a backend-owned preview stream plus a lightweight event channel for box and
-quality metadata. Keep all transport on loopback. Every event includes source
-dimensions, preview dimensions, frame timestamp/sequence, and box coordinates
-so the canvas transformation is testable.
+quality metadata. Keep all transport on loopback through Phase 6. In Phase 7,
+bind only to the controlled access-point interface and preserve the local kiosk
+path. Every event includes source dimensions, preview dimensions, frame
+timestamp/sequence, and box coordinates so the canvas transformation is
+testable.
+
+Do not design a second inference API for Phase 8. The paired browser calls the
+same application services already proven by SOLO mode. Pairing adds exclusivity
+and handoff, not a new user/account system.
 
 ## 15. Vision state machine
 
@@ -651,296 +696,452 @@ important botanical claim can be traced to retrieved local evidence.
 
 # Part IV — Phase-by-phase implementation plan
 
-## Phase 0 — Hardware and repository baseline
+## Phase 0 — Environment
 
 ### Work
 
-1. Read the existing Botanika documentation and inspect repository status.
-2. Run the hardware-readiness checks in `docs/STAGE0_TEST_RUNBOOK.md`.
-3. Record OS, kernel, architecture, camera stack, screen resolution, audio
-   devices, SSD filesystem/free space, Python/Node versions, temperature,
-   throttling, and available memory.
-4. Prove the screen reports 800×480 and document any desktop scaling.
-5. Prove one Pi Camera preview and still capture.
-6. Prove microphone capture and speaker playback without leaving recordings.
-7. Inspect InnoHack only as a read-only reference.
+1. Read the Botanika documentation and inspect repository/Git status.
+2. Update Raspberry Pi OS using the normal supported package workflow and
+   record the pre/post versions. Do not perform an unattended distribution
+   upgrade.
+3. Confirm the Pi Camera is enabled, detected, and accessible through the
+   installed native Raspberry Pi camera tooling.
+4. Open a native camera preview and capture one temporary still.
+5. Confirm the display is exactly 800×480 and record desktop scaling.
+6. Record architecture, Python version, free SSD space, RAM, CPU temperature,
+   throttling state, and camera-stack version.
+7. Create the project Python virtual environment and a pinned dependency input.
+8. Install only the libraries required for the next phases: the supported Pi
+   camera bindings, OpenCV, NumPy, and the selected Ultralytics/YOLO runtime.
+   FastAPI, React, and UI dependencies are deliberately deferred.
+9. Add a repeatable environment verification command and update the operator
+   notes. Do not build application behavior yet.
 
 ### Tests and evidence
 
-- hardware readiness report;
-- exact commands and summarized outputs;
-- camera and audio release/reacquire checks; and
+- hardware/environment readiness report;
+- exact version and installation evidence;
+- successful native preview and temporary still capture;
+- camera release/reacquire check; and
 - list of blockers or measured constraints.
 
 ### Exit gate
 
-Camera, screen, audio, SSD, and thermal facts are measured. Any unavailable
-device has an explicit development fallback. Continue automatically if there is
-no blocking hardware failure.
+**You know it worked when:** the native Pi camera tool shows a live picture on
+the 800×480 screen, the temporary still is valid, and the project virtual
+environment imports its Phase 1/2 dependencies. Report the result and stop. Do
+not start Phase 1 in the same handoff.
 
-## Phase 1 — Local application foundation
+## Phase 1 — Raw feed in code
 
 ### Work
 
-1. Pin supported Python, Node.js, and package-manager versions based on the Pi.
-2. Create the FastAPI package, settings, lifecycle, error schema, request IDs,
-   liveness, readiness, and capability endpoints.
-3. Create the React/Vite application shell.
-4. Serve the built interface and API from one loopback origin.
-5. Add SQLite migrations and managed runtime directories.
-6. Add structured, rotating, privacy-safe logs.
-7. Add development commands and environment examples without secrets.
+1. Create the smallest maintainable Python camera module and runnable script.
+2. Open the Pi Camera through one explicit camera owner.
+3. Convert frames into the color layout expected by OpenCV.
+4. Display live frames in a normal window on the Pi’s own screen.
+5. Add a visible frame counter/FPS diagnostic and a documented quit key.
+6. Handle camera-open failure, dropped frames, and shutdown without leaving the
+   camera busy.
+7. Keep this phase independent of FastAPI, React, SQLite, classification, and
+   application styling.
 
 ### Tests
 
-- backend unit/contract tests;
-- migration upgrade/downgrade or forward-recovery test;
-- same-origin shell smoke test;
-- truthful readiness with missing models/devices; and
-- clean start/stop with no orphan process.
+- unit-test any frame conversion or configuration logic that does not require
+  hardware;
+- run the script on the actual Pi for at least five minutes;
+- record resolution, measured FPS, memory, temperature, and dropped frames; and
+- quit and reopen it to prove the camera was released.
 
 ### Exit gate
 
-The Pi browser opens a local shell, backend health is truthful, and failures are
-diagnosable.
+**You know it worked when:** live frames rendered by Botanika’s Python code—not
+the OS preview tool—are visible on the Pi display and the script can close and
+reopen cleanly. Report the result and stop.
 
-## Phase 2 — InnoHack-derived 800×480 Botanika shell
+## Phase 2 — Generic detection
 
 ### Work
 
-1. Implement the exact visual tokens and shell dimensions in Part I.
-2. Build the fixed masthead and centered Botanika leaf wordmark.
-3. Build the three-card homepage and lower-corner foliage.
-4. Build shared buttons, badges, panels, action bars, dialogs, toasts, loading,
-   unavailable states, keyboard focus, and capability popover.
-5. Add empty route shells for Scan, Library, Ask Botanika, and Weed Detection.
-6. Add keyboard/touch navigation and reduced-motion behavior.
+1. Load one small pretrained YOLO detector through a dedicated adapter.
+2. Record the model name, version, artifact source, checksum, labels, and
+   license. Do not present it as a plant-species classifier.
+3. Run the detector on resized camera frames and drop stale work rather than
+   queueing frames.
+4. Scale returned boxes back to the displayed camera frame correctly.
+5. Draw class name, box, and generic detector confidence on the live OpenCV
+   window for every supported detected object.
+6. Keep model load outside the per-frame loop and release it cleanly at exit.
+7. Record p50/p95 inference latency, visible FPS, memory, temperature, and
+   throttling on the real Pi.
 
 ### Tests
 
-- screenshots at exactly 800×480 for every shell route;
-- no page-level scrollbar or clipped touch target;
-- keyboard focus order and Escape/Back behavior;
-- contrast and non-color semantic indicators; and
-- screenshot comparison against approved Botanika baselines.
+- model adapter and coordinate-scaling tests;
+- known-image inference smoke test;
+- live camera test containing at least two ordinary detectable object types;
+- missing/corrupt model behavior; and
+- five-minute sustained performance measurement.
 
 ### Exit gate
 
-The kiosk visually matches InnoHack’s design language and all Botanika routes
-fit 800×480 before camera/model complexity is added.
+**You know it worked when:** generic live boxes visibly track objects in the Pi
+camera window and no unbounded inference backlog develops. A plant box is not a
+required outcome unless the chosen generic label set actually contains one.
+Report what the pretrained model can and cannot detect, then stop.
 
-## Phase 3 — Pi Camera and preview ownership
+## Phase 3 — Lock-on logic and crop capture
 
 ### Work
 
-1. Implement one Picamera2/libcamera-backed camera adapter.
-2. Add lifecycle, supported resolution, autofocus/exposure status, reconnect,
-   and release behavior.
-3. Publish the local preview plus timestamped source-dimension metadata.
-4. Render it in the 500 px Scan workspace with correct contain/letterbox math.
-5. Add backend and frontend capture cancellation.
-6. Add local file selection as a degraded fallback.
+1. Select one candidate box, preferring the largest central eligible detection.
+2. Track it across frames using class, intersection-over-union, center movement,
+   relative size change, appearance, and disappearance rules.
+3. Implement explicit lock states: Searching, Tracking, Hold steady, Checking
+   sharpness, Locked, Captured, and Cooldown.
+4. Calculate blur/focus on the candidate crop, not the whole frame. Add simple
+   exposure, minimum-size, and edge-clipping checks so a technically sharp but
+   unusable crop is rejected.
+5. Calibrate thresholds using actual Pi Camera samples rather than declaring
+   arbitrary constants correct.
+6. Require stable and usable conditions for several consecutive checks.
+7. When the gate passes, pad/clamp the selected box and save only that crop to a
+   temporary Phase 3 output directory. Do not save the full frame.
+8. Add a cooldown/deduplication guard so one steady object does not create many
+   files.
+9. Keep a manual capture path for debugging.
 
 ### Tests
 
-- real camera preview soak;
-- busy/missing/reconnect cases;
-- source-to-preview coordinate fixtures;
-- camera released after route exit/backend stop; and
-- 800×480 screenshot with 4:3 and alternate source ratios.
+- deterministic tracking/stability tests with recorded box sequences;
+- blur, exposure, size, and edge fixture tests;
+- crop coordinate and exact-pixel tests;
+- stable/sharp, moving, blurry, clipped, disappeared, and multi-box hardware
+  trials;
+- duplicate cooldown test; and
+- filesystem proof that only crops are created.
 
 ### Exit gate
 
-The Scan screen shows a stable local preview for at least 15 minutes, exits
-cleanly, and never has two competing camera owners.
+**You know it worked when:** point the camera at an eligible object, hold it
+still, and exactly one sharp cropped image file appears. Moving or blurry targets
+must not auto-save. Report the result and stop.
 
-## Phase 4 — Plant detector, tracking, quality lock, and crop
+## Phase 4 — Classifier stub and complete pipeline shape
 
 ### Work
 
-1. Define the detector model registry and labels.
-2. Benchmark compact detector/runtime candidates on the real Pi.
-3. Implement a bounded live detector loop that drops stale frames.
-4. Draw all boxes and support target selection.
-5. Implement tracking, stability, edge, size, exposure, and focus checks.
-6. Create a calibration tool/runbook using real plant fixtures and lighting.
-7. Implement automatic and manual capture.
-8. Implement padded crop geometry, clamping, orientation, metadata stripping,
-   hashing, and immediate full-frame release.
+1. Define the real classifier input/output interface before selecting the final
+   model.
+2. Implement a deterministic dummy classifier behind that interface. It accepts
+   a crop path or image object and returns hardcoded but schema-valid data:
+   stable species ID, common name, scientific name, family, category,
+   conservation status, confidence, short notes, sources, and classifier version.
+3. Mark every dummy response with `is_stub: true` and the classifier version
+   `stub-phase-4`; expose `DEMO DATA` visibly wherever it is displayed or logged.
+4. Pass each accepted Phase 3 crop directly into the classifier interface.
+5. Print or render a small local diagnostic result and preserve the crop path,
+   timing, and result association.
+6. Exercise accepted, low-confidence, classifier-error, cancellation, and
+   malformed-image responses even though the values are deterministic.
+7. Do not download, train, or pretend to validate a species model in this phase.
 
 ### Tests
 
-- detector contract and label-map tests;
-- box tracking tests;
-- blur/exposure fixture tests;
-- coordinate conversion for letterbox/resize/orientation;
-- crop pixel-content test, not only overlay alignment;
-- proof that no full frame persists; and
-- Pi FPS, p50/p95 latency, temperature, and throttling measurements.
+- schema and deterministic-output tests;
+- crop → classifier invocation test;
+- stub accepted/uncertain/error path tests;
+- full camera → detection → stable/quality gate → crop → stub result integration
+  test; and
+- visible proof that stub data cannot be mistaken for a real identification.
 
 ### Exit gate
 
-Real plants produce usable boxes and one correct crop only after measured
-quality/stability checks, with a working manual fallback.
+**You know it worked when:** holding an eligible object steady creates one crop,
+the crop automatically enters the stub classifier, and a complete clearly
+labelled fake species result appears. This phase proves the end-to-end pipeline
+shape before real species AI. Report the result and stop.
 
-## Phase 5 — Regional species classifier and species knowledge
+## Phase 5 — Pi’s standalone 800×480 UI (SOLO)
 
 ### Work
 
-1. Freeze the initial geographic region and supported species catalog.
-2. Collect licensed datasets, deduplicate by observation, and split without
-   observation/site leakage.
-3. Prepare the normalized species/alias/category/conservation/source database.
-4. Train off-device if needed, export candidate compact models, and benchmark
-   them on the Pi.
-5. Calibrate confidence and implement unknown rejection.
-6. Join classifier labels to stable species IDs and sourced details.
-7. Implement accepted/uncertain result UI around the selected box.
-8. Record the full model contract and limitations.
+1. Add the FastAPI modular-monolith foundation, lifecycle, settings, liveness,
+   readiness, capability reporting, error schemas, and bounded logs.
+2. Add the React/Vite application and serve it with the API from one loopback
+   origin.
+3. Implement the exact InnoHack-derived 800×480 visual system in Parts I–II:
+   fixed shell, 66 px masthead, centered Botanika wordmark, warm paper palette,
+   three-card homepage, foliage, Scan, Library shell, Ask shell, and Weed Beta
+   disabled shell.
+4. Move the Phase 1–4 camera/detection/lock/crop/stub pipeline behind reusable
+   backend services without changing its proven behavior.
+5. Publish the backend-owned preview and timestamped box/quality events to the
+   local Scan screen.
+6. Implement the 500 px camera workspace, exact overlay transformation, quality
+   prompts, processing state, stub name above the accepted box, stub confidence
+   below it, and details panel.
+7. Add Save to Library, Retake, Another angle, manual capture, cancellation, and
+   local image fallback. Until Phase 6, a saved stub record must remain clearly
+   marked demo-only and kept separate from real discoveries.
+8. Add keyboard/touch input, reduced motion, internal-only scrolling, and clear
+   unavailable states.
+9. Keep the service on loopback. Do not add hotspot, pairing, alternate device
+   layouts, physical mode controls, or network exposure.
 
 ### Tests
 
-- immutable label-map/species join tests;
-- held-out macro and per-class results;
-- out-of-scope/unknown tests;
-- calibration reliability test;
-- crop preprocessing parity test;
-- Pi latency/memory/thermal benchmark; and
-- UI tests for accepted, uncertain, unavailable, and cancelled results.
+- API and pipeline contract tests;
+- camera ownership/reconnect tests after the service refactor;
+- overlay/crop coordinate tests across source aspect ratios;
+- UI tests for detecting, locking, processing, result, uncertain, error, and
+  cancellation states;
+- exactly 800×480 screenshots for Home and Scan;
+- no page-level scrollbar, clipping, or undersized primary control; and
+- real Pi end-to-end browser run using the stub classifier.
 
 ### Exit gate
 
-The model meets declared regional accuracy/calibration targets, abstains outside
-confidence, and runs within the measured Pi performance budget. Do not call the
-classifier complete without a real validated artifact.
+**You know it worked when:** open Chromium on the Pi, enter Scan from the real
+Botanika homepage, see live boxes and lock feedback, hold an object steady, and
+see the Phase 4 demo result populate the designed details panel. Everything must
+work standalone at 800×480. Report the result and stop.
 
-## Phase 6 — Local species-grouped library
+## Phase 6 — Real species data, classifier, and library
 
 ### Work
 
-1. Implement the discovery schema and SQLite/filesystem transaction service.
-2. Implement explicit save, deduplication, species grouping, observation
-   history, thumbnail generation, notes, export, confirmed delete, quota,
-   backup, and restore.
-3. Build the exact stacked coverage/list layout.
-4. Build category colors/symbols and filters.
-5. Build the details drawer with all crops and saved-time facts.
-6. Add optional positioning capability handling without fabricated data.
+1. Freeze the first region and a minimum catalog of seven supported plant
+   species, including at least two region-specific/native species and any
+   carefully supported threatened/endangered examples.
+2. Curate licensed images and botanical facts. Record dataset/source/license
+   provenance, deduplicate by observation, and split without observation or
+   location leakage.
+3. Build the normalized SQLite species knowledge tables: stable IDs, names,
+   aliases, family, category, conservation assessment, ecology, sources, and
+   model-release metadata.
+4. Select or train a real compact classifier, export it to a Pi-efficient
+   runtime, benchmark it on the actual Pi, calibrate confidence, and implement
+   explicit unknown rejection. Training may happen off-Pi; all runtime inference
+   remains on the Pi.
+5. Replace the Phase 4 implementation behind the unchanged classifier interface.
+   Delete or disable every stub path in normal runtime.
+6. Join labels to stable species IDs and render real accepted/uncertain results.
+7. Implement the authoritative species-grouped discovery library with explicit
+   crop-only save, deduplication, multiple observations/images per species,
+   thumbnails, details, notes, category filters, export, confirmed delete,
+   quota, backup, and restore.
+8. Implement the exact stacked coverage/list layout. Without a trustworthy
+   position source, show the designed local coverage summary and save without
+   coordinates.
 
 ### Tests
 
-- repeated species creates one group and several observations;
+- immutable label-map/species join and migration tests;
+- held-out macro/per-class metrics and out-of-catalog trials;
+- confidence calibration and unknown rejection tests;
+- preprocessing parity and Pi latency/memory/thermal benchmarks;
+- proof that no normal runtime result carries `is_stub: true`;
+- repeated species creates one group with multiple observations;
 - only cropped pixels persist;
-- duplicate-save behavior;
-- failed file/database transaction recovery;
-- export/delete confirmation;
-- backup/restore with image linkage;
-- unavailable-position UI; and
-- list/detail screenshots at 800×480 with empty, normal, and long data.
+- duplicate and failed file/database transaction recovery;
+- export/delete/backup/restore with image linkage;
+- unavailable-position behavior; and
+- 800×480 Scan, Library, and details screenshots with real data.
 
 ### Exit gate
 
-Saved discoveries survive restart, group correctly, restore correctly, and
-never persist a full camera frame.
+**You know it worked when:** SOLO mode identifies the supported real plants with
+the declared measured reliability, rejects unsupported/uncertain inputs, saves
+only accepted crops, groups repeat findings under one species, and restores the
+library after restart. Report the catalog, metrics, limitations, and goal check,
+then stop.
 
-## Phase 7 — Offline botanical guide and voice
+## Phase 7 — Private Pi Wi-Fi networking
 
 ### Work
 
-1. Build source/license manifests and reproducible knowledge ingestion.
-2. Add FTS5, embeddings, retrieval, citations, and species-context boosting.
-3. Benchmark a suitable quantized local LLM and llama.cpp settings.
-4. Implement grounded typed chat and explicit insufficient-evidence behavior.
-5. Reuse the reliable InnoHack audio patterns for microphone ownership,
-   silence-ended STT, cached Piper TTS, and cancellation.
-6. Benchmark Indian-English Vosk and suitable Whisper.cpp/faster-whisper
-   variants; select based on measured latency/accuracy.
-7. Implement push-to-talk, visible transcript, spoken answer, stop action, and
-   local voice navigation commands.
+1. Preserve the working SOLO mode unchanged and create a recovery plan before
+   altering network configuration.
+2. Configure the Pi as a private WPA2/WPA3 Wi-Fi access point using the network
+   stack supported by the installed Pi OS. Use hostapd/dnsmasq only when they are
+   the appropriate supported choice for that OS image.
+3. Give the Pi a stable private access-point address and local hostname.
+4. Configure DHCP/DNS so a connected browser can reach the Botanika page without
+   internet access. A simple local landing redirect may be added if reliable.
+5. Install FastAPI/network dependencies if not already present and expose the
+   same Phase 5/6 application on the access-point interface. Do not duplicate
+   camera, classifier, library, or knowledge logic.
+6. Keep loopback access working for the Pi kiosk.
+7. Add firewall/interface restrictions so Botanika is reachable from the private
+   access point but is not exposed on unrelated interfaces or the internet.
+8. Add honest network capability/health reporting and an operator command to
+   enable, disable, and recover the access point.
+9. Show a minimal device-independent landing page. Do not build the final
+   responsive scan UI, pairing, modes, or controller handoff yet.
 
 ### Tests
 
-- retrieval gold questions;
-- source/citation integrity;
-- unsupported-question abstention;
-- prompt-injection resistance for ingested text;
-- microphone/speaker ownership and cancellation;
-- STT latency/noise/accent samples with consent-safe fixtures;
-- no model download during offline startup; and
-- 800×480 long-conversation/citation screenshots.
+- SOLO regression test for camera, classifier, and library;
+- access-point start/stop/reboot/recovery test;
+- DHCP, DNS/local hostname, and page-load tests;
+- firewall/listener inspection on every interface;
+- phone connected to only the Pi access point with mobile data disabled;
+- backend restart and browser reconnection test; and
+- proof that the same FastAPI services handle Pi and access-point requests.
 
 ### Exit gate
 
-Botanical answers are usable offline, important claims are traceable, missing
-facts abstain, and text remains usable when voice is unavailable.
+**You know it worked when:** a phone joins the Pi’s private Wi-Fi and loads a
+Botanika page served by FastAPI while the Pi’s standalone application still
+works. No pairing, remote camera, or mode switching is required yet. Report the
+network configuration and goal check, then stop.
 
-## Phase 8 — Weed Detection beta
+## Phase 8 — Responsive client, pairing, and SOLO/NETWORKED handoff
 
 ### Work
 
-1. Define the agricultural context, region, and supported weed species.
+1. Add an explicit mode state machine: SOLO, NETWORKED_UNPAIRED, and
+   NETWORKED_PAIRED.
+2. Keep the Pi as the only backend and authoritative datastore.
+3. Add the physical mode-toggle button and status LEDs through one debounced GPIO
+   adapter. Define pins in configuration, safe boot defaults, cleanup, and a
+   keyboard/software fallback for development.
+4. In SOLO, the Pi screen retains the full 800×480 application and Pi Camera.
+5. In NETWORKED_UNPAIRED, the Pi screen shows access-point name, connection
+   guidance, QR/short pairing code, expiration, and return-to-SOLO action.
+6. Use a standard Wi-Fi QR for joining the private access point when useful, then
+   a short-lived single-use application token for controller pairing. This is a
+   handoff mechanism, not an account system.
+7. In NETWORKED_PAIRED, the Pi screen becomes an 800×480 status console showing
+   paired device, current scan state, recent result log, connection health, and
+   disconnect/return-to-SOLO controls.
+8. Enforce exactly one active paired controller. Revoke the prior lease on mode
+   change, explicit disconnect, expiry, or operator takeover.
+9. Add a responsive portrait layout for the same React feature set. Preserve the
+   exact Pi layout separately; do not shrink the 800×480 shell into the mobile
+   viewport.
+10. On the paired browser, open its camera locally. Run the generic detector,
+    stability checks, blur/exposure checks, and crop construction on that active
+    device when performance permits. Send only the accepted padded crop to the
+    Pi classifier; never stream live video to the Pi.
+11. If browser-side detection is unsupported, retain a clearly marked manual
+    crop/capture fallback rather than sending continuous video.
+12. Return classifier name, confidence, details, and category from the Pi and
+    draw the accepted result around the corresponding local box.
+13. With permission, obtain latitude, longitude, accuracy, timestamp, and source
+    from the paired browser only when saving a discovery. A denied or unavailable
+    position never blocks identification or saving.
+14. Save authoritative discoveries/crops to the Pi library. If a personal
+    per-browser view is retained, treat it as a cache/preferences layer rather
+    than the only copy.
+15. Add reconnect, lease loss, mode change, stale response, interrupted crop
+    upload, and Pi-unavailable states. Keep the crop available for explicit retry
+    or cancel until the request resolves.
+
+### Tests
+
+- GPIO debounce, boot state, LED mapping, and cleanup tests;
+- pairing token expiry, single use, revocation, and one-controller tests;
+- SOLO → unpaired → paired → SOLO state-machine tests;
+- 800×480 screenshots of all three Pi mode states;
+- portrait browser screenshots and touch-target checks;
+- browser camera permission denied/manual fallback;
+- proof that no live video reaches the Pi;
+- crop hash/dimensions equivalence before and after upload;
+- classification/save/repeated-species flow from the paired browser;
+- location allowed, denied, inaccurate, and unavailable cases; and
+- disconnect/reconnect, interrupted upload, backend restart, and mode-takeover
+  trials.
+
+### Exit gate
+
+**You know it worked when:** press the mode button, join/pair from the Pi screen,
+run a complete camera → stable box → crop-only upload → Pi classification → save
+flow from the paired browser, see the Pi status console update, and return safely
+to SOLO. Report the result and stop.
+
+## Phase 9 — Extras and final hardening, only if time remains
+
+### Work
+
+Implement these in order. Each extra has its own gate; do not sacrifice the
+working scan/classify/library/mode flow for them.
+
+### 9A — Offline botanical chat and Pi voice
+
+1. Build source/license manifests, SQLite FTS5, a compact embedding index,
+   citations, and reproducible knowledge ingestion.
+2. Benchmark a suitable quantized local LLM and llama.cpp settings.
+3. Implement grounded typed chat with explicit insufficient-evidence behavior.
+4. Reuse proven InnoHack patterns for bounded STT, silence endpointing, one audio
+   owner, cached Piper TTS, and interruption.
+5. Add visible transcript, answer, citations, and local voice navigation.
+
+**Goal check:** a typed and spoken botanical question receives a sourced offline
+answer; missing evidence causes an explicit abstention; voice failure leaves
+typed chat usable.
+
+### 9B — Gamification and aggregate discovery summaries
+
+1. Add coverage percentage against the supported catalog, category progress,
+   first/repeat discovery indicators, and non-manipulative milestones.
+2. Keep the personal discovery library authoritative on the Pi. If paired-browser
+   preferences are stored locally, document their non-authoritative role.
+3. Build anonymous aggregate summaries from discovery observations without
+   inventing community scale or exposing personal data.
+
+**Goal check:** progress derives reproducibly from real saved discoveries and
+remains correct after repeat findings, deletion, backup, and restore.
+
+### 9C — Weed Detection beta
+
+1. Define the crop context, region, and supported weed species.
 2. Curate/train/validate an independent multi-box detector.
-3. Reuse camera ownership and overlay primitives without mixing model labels.
-4. Build multi-box result UI and confidence display.
-5. Ensure temporary images/crops are deleted after inference.
-6. Add optional coordinate-only storage through a validated Pi positioning
-   adapter and the exact unavailable-coordinate toast.
-7. Add clear safety, beta, and unsupported-scope copy.
+3. Support the Pi Camera in SOLO and one captured frame from the paired browser
+   in NETWORKED. Do not stream live browser video.
+4. Draw all supported weed boxes and confidence values.
+5. Do not add weed results or images to the plant library; delete temporary
+   images after inference.
+6. When accurate position is available, store only the coordinate observation
+   and model metadata. Otherwise show: `Exact location could not be found.
+   Coordinate collection was skipped.`
+7. Never connect this beta to a drone or chemical applicator.
 
-### Tests
+**Goal check:** multiple supported weeds are boxed, no image/library entry
+persists, and missing coordinates produce the toast without breaking detection.
 
-- supported and unsupported weed fixtures;
-- multi-box overlay coordinates;
-- no discovery-library entry or image persistence;
-- absent/invalid positioning behavior;
-- coordinate accuracy/source validation when hardware exists; and
-- Pi performance/thermal measurements.
-
-### Exit gate
-
-The beta identifies only declared weeds, handles several boxes, leaves no image
-behind, and never fails because coordinates are unavailable.
-
-## Phase 9 — Kiosk deployment and recovery
-
-### Work
+### 9D — Kiosk deployment and final hardening
 
 1. Create production builds and explicit runtime/data directories.
-2. Add hardened systemd units for backend and optional local LLM.
-3. Add readiness-aware Chromium kiosk launch at 800×480.
-4. Add boot recovery, service restart, bounded logs, and on-screen diagnostics.
-5. Keep a documented keyboard/terminal recovery path.
-6. Add backup scheduling only after manual backup/restore has passed.
+2. Add systemd services, readiness-aware 800×480 Chromium launch, safe GPIO
+   startup, access-point supervision, bounded logs, and a recovery path.
+3. Test cold boot, offline boot, service crash/restart, camera/audio reacquisition,
+   pairing recovery, disk full/read-only, corrupt models, database backup/restore,
+   and power-loss-safe behavior where practical.
+4. Run multi-hour scan/idle/chat soak tests and record CPU, RAM, latency,
+   temperature, and throttling.
+5. Conduct five structured usability sessions and record resulting changes.
+6. Complete model, dataset, source, license, limitation, privacy, operator, and
+   demonstration documentation.
 
 ### Tests
 
-- cold boot to usable homepage timing;
-- service crash/restart;
-- camera/audio reacquisition after restart;
-- power-loss-safe SQLite behavior where practical;
-- kiosk relaunch and no desktop chrome;
-- offline boot; and
-- recovery instructions executed on the real Pi.
+- each selected extra’s goal check;
+- complete SOLO regression journey;
+- complete paired-controller regression journey;
+- boot/recovery/soak evidence; and
+- end-to-end demonstration checklist.
 
 ### Exit gate
 
-The Pi boots directly into Botanika, recovers from local process failures, and
-remains usable without internet access.
+**You know the final build worked when:** the Pi boots into Botanika, SOLO still
+performs scan → lock → crop → real identification → grouped save, NETWORKED still
+performs the paired crop-only flow, and every selected extra passes its own goal
+without weakening the core application.
 
-## Phase 10 — Hardening, feedback, and release evidence
-
-### Work
-
-1. Run multi-hour scan/idle/chat soak tests.
-2. Test disk-full, database read-only, missing model, corrupt model, camera busy,
-   audio missing, and knowledge-index failure.
-3. Profile memory, CPU, latency, heat, and throttling for every main journey.
-4. Conduct at least five structured usability sessions on the 800×480 screen.
-5. Record findings and the changes made because of them.
-6. Complete model, dataset, source, license, limitation, and privacy registers.
-7. Produce an operator runbook and final end-to-end demonstration checklist.
-
-### End-to-end acceptance journeys
+## Final acceptance journeys
 
 1. Boot → Home → Scan → stable box → crop → accepted identification.
 2. Accepted result → Save → Library → same species grouped with later capture.
@@ -964,7 +1165,7 @@ runbook.
 
 # Required reporting after every phase
 
-At the end of each phase, report:
+At the end of the assigned phase, report:
 
 1. outcome delivered;
 2. files changed;
@@ -973,7 +1174,7 @@ At the end of each phase, report:
 5. known limitations or unavailable artifacts;
 6. screenshots/evidence produced;
 7. exit-gate verdict; and
-8. the next phase about to begin.
+8. the next phase that is now eligible, without starting it.
 
 Commit coherent verified work with descriptive messages. Do not claim a phase
 complete because the UI renders if its hardware, data, model, persistence, or
@@ -981,8 +1182,9 @@ recovery gate has not passed.
 
 # Start now
 
-Begin at Phase 0. If its exit gate passes, continue through the phases in order
-without returning to architecture-only work. Use the existing repository
-structure unless a measured implementation need justifies a documented change.
-The desired endpoint is the complete standalone Pi kiosk described here—not a
-mockup or collection of placeholder screens.
+Begin with Phase 0 only. Implement it, perform its goal check, report the result,
+and stop. On a later handoff, inspect the evidence and begin only the next
+incomplete phase. Use the existing repository structure unless a measured
+implementation need justifies a documented change. Phases 7 and 8 may not begin
+until the complete real-species SOLO pipeline in Phase 6 passes. Phase 9 is
+optional and may not begin until the core flow selected by the user is stable.

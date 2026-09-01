@@ -76,7 +76,7 @@ Botanika/
 │   └── decisions/
 ├── prompt.md                    # Authoritative next-session instructions
 ├── BOTANIKA_PI_APP_IMPLEMENTATION_PROMPT.md
-│                                # Complete phased Pi application build prompt
+│                                # Complete dependency-ordered build prompt
 ├── .gitignore
 └── README.md
 ```
