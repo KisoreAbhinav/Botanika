@@ -19,6 +19,7 @@ local capability at a time.
 - [Phase 1 raw-feed report](docs/PHASE1_RAW_FEED_REPORT_2026-09-01.md)
 - [Phase 2 generic detection report](docs/PHASE2_GENERIC_DETECTION_REPORT_2026-09-01.md)
 - [Phase 3 lock-on report](docs/PHASE3_LOCK_ON_REPORT_2026-09-01.md)
+- [Deferred final operator acceptance](docs/DEFERRED_OPERATOR_ACCEPTANCE.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)
 

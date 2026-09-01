@@ -54,6 +54,11 @@ The observed post-upgrade native package versions are recorded in the first
 file. The Python pins match the already available runtime packages; no PyPI
 download was needed for this baseline.
 
+The verifier now compares the exact direct distribution pins as a scoped
+environment-health gate. A generic `pip check` is not authoritative here
+because `--system-site-packages` exposes unrelated Debian Python metadata; its
+typing-package/debconf findings are outside Botanika's direct dependency set.
+
 ## Supported OS update
 
 The pre-update system reported Debian version `13.3`, `rpicam-apps 1.11.1`,
@@ -124,7 +129,7 @@ the host hardware. Repeating the probes with host-device access and explicit
 `DISPLAY=:0`/Xauthority proved the hardware paths above. Future hardware runs
 must use the local desktop or equivalent host-device access.
 
-## Corrective actions before the Phase 0 gate can pass
+## Deferred final operator acceptance
 
 1. A person at the Pi must confirm the native preview shows a correctly
    oriented, live image with usable autofocus.
@@ -135,9 +140,23 @@ must use the local desktop or equivalent host-device access.
    desktop returns at 800×480. No automatic reboot was performed in this
    session.
 
-## Exit-gate verdict
+These checks are now consolidated in
+[`DEFERRED_OPERATOR_ACCEPTANCE.md`](DEFERRED_OPERATOR_ACCEPTANCE.md). The owner
+has deferred them until final acceptance; they remain open and must not be
+reported as passed in the meantime.
 
-**Phase 0 remains incomplete and Phase 1 is not yet eligible.** All automated
-checks and the native preview/capture process pass, but the runbook requires the
-remaining human-observed visual/audio checks and reboot recovery confirmation.
-The implementation prompt requires stopping here rather than starting Phase 1.
+## Automated-gate verdict
+
+**Phase 0 automated readiness passes; final operator acceptance remains open.**
+All automated checks and the native preview/capture process pass. Under the
+owner-approved scheduling exception, later automated implementation may proceed
+while the human-observed visual/audio checks and reboot recovery confirmation
+remain explicitly deferred.
+
+### Post-audit automated rerun
+
+After the verifier gained exact direct-pin validation, a direct-device strict
+run again passed camera enumeration, active 800×480 display mode, microphone and
+speaker enumeration, writable storage, required imports, exact NumPy/OpenCV/ONNX
+Runtime pins, and throttling (`0x0`). No preview judgment, audio playback or
+recording, image capture, or reboot was performed as part of that rerun.

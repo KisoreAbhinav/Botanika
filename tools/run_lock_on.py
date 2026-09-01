@@ -171,6 +171,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--nms-iou", type=float, default=0.45)
     parser.add_argument("--stable-checks", type=int, default=4)
+    parser.add_argument("--appearance-similarity", type=float, default=0.70)
     parser.add_argument("--cooldown-frames", type=int, default=30)
     parser.add_argument("--padding", type=float, default=0.08)
     parser.add_argument("--no-auto-capture", action="store_true")
@@ -211,6 +212,7 @@ def run_lock_on(
     confidence: float = 0.25,
     nms_iou: float = 0.45,
     stable_checks: int = 4,
+    appearance_similarity: float = 0.70,
     cooldown_frames: int = 30,
     padding: float = 0.08,
     automatic_capture: bool = True,
@@ -233,6 +235,7 @@ def run_lock_on(
         LockOnConfig(
             eligible_labels=eligible_labels,
             stable_checks=stable_checks,
+            minimum_appearance_similarity=appearance_similarity,
             cooldown_frames=cooldown_frames,
             crop_padding_ratio=padding,
             automatic_capture=automatic_capture,
@@ -338,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
             confidence=args.confidence,
             nms_iou=args.nms_iou,
             stable_checks=args.stable_checks,
+            appearance_similarity=args.appearance_similarity,
             cooldown_frames=args.cooldown_frames,
             padding=args.padding,
             automatic_capture=not args.no_auto_capture,

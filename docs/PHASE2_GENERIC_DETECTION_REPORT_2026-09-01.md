@@ -89,10 +89,13 @@ completed at 5.6 FPS with zero detections.
 OpenCV's Qt backend emitted a non-fatal missing-font-directory warning; it did
 not prevent window creation, inference, or shutdown.
 
-## Follow-up before Phase 3
+## Deferred final operator follow-up
 
 Point the camera at a scene containing at least two ordinary COCO objects and
 repeat the live display run, recording the visible labels and boxes. The
 generic model's `potted plant` label is only a broad COCO object label; it is
 not evidence of plant species identification.
 
+The owner has deferred this physical-scene observation to final acceptance. It
+remains open in `DEFERRED_OPERATOR_ACCEPTANCE.md`; automated work may continue
+without treating the observation as passed.

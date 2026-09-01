@@ -10,7 +10,8 @@ Tests will be organized by:
 - licensed or synthetic fixtures.
 
 Phase 1 begins the executable test boundary with hardware-independent camera
-configuration, RGB888-to-BGR conversion, lifecycle, dropped-frame, and partial
-startup cleanup tests. Phase 2 adds detector contract/coordinate tests; Phase 3
-adds deterministic tracking, quality, cooldown, and crop-only filesystem tests.
-Hardware checks remain separate and are run on the Pi.
+configuration, Picamera2 RGB888/OpenCV byte-order validation, lifecycle,
+dropped-frame, and partial-startup cleanup tests. Phase 2 adds detector
+contract/coordinate tests; Phase 3 adds deterministic tracking, quality,
+cooldown, rearming, appearance, and crop-only filesystem tests. Hardware checks
+remain separate and are run on the Pi.

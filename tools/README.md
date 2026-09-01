@@ -25,6 +25,12 @@ opened inside the Pi desktop normally inherits them already. Hardware probes
 must have access to the Pi device nodes and therefore may be blocked by a
 container or managed sandbox even when the host hardware is healthy.
 
+Because the virtual environment deliberately inherits Raspberry Pi OS packages
+for Picamera2/libcamera, a generic `pip check` also inspects unrelated Debian
+Python metadata and may report missing optional typing/distribution packages.
+The Phase 0 verifier instead checks every Botanika direct Python pin exactly and
+reports those results under `python_dependency_pins`.
+
 Phase 0 dependency inputs are kept in:
 
 - `config/environments/phase0-native-packages.txt` for Raspberry Pi OS packages;
@@ -42,8 +48,9 @@ Run the Botanika-owned OpenCV feed on the Pi display:
 ```
 
 The script uses one `CameraOwner`, requests the measured 1536×864 `RGB888`
-preview stream, converts each frame to OpenCV BGR, and renders a normal
-800×480 window. Press `q` or `Esc` to quit. For a bounded diagnostic run:
+preview stream, validates Picamera2's OpenCV-ready BGR array without swapping
+channels, and renders a normal 800×480 window. Press `q` or `Esc` to quit. For
+a bounded diagnostic run:
 
 ```sh
 .venv/bin/python tools/run_camera.py --seconds 300
@@ -77,8 +84,9 @@ Run the target tracker and crop-only capture path:
 
 The default eligible generic label is `potted plant`. Hold an eligible target
 steady for the configured checks; the runner evaluates size, edge clipping,
-exposure, and crop focus before saving one PNG under
+exposure, crop focus, and target appearance before saving one PNG under
 `data/media/temp/phase3-crops/`. Press Space for a manual debug crop, and `q`
 or `Esc` to quit. Use `--no-auto-capture` to inspect the lock without writing.
-Quality values come from the explicitly unvalidated baseline config and must be
-calibrated on real Pi Camera fixtures.
+After a capture, the target must leave or be replaced before automatic capture
+rearms. Quality values and the `--appearance-similarity` default are
+unvalidated baselines that must be calibrated on real Pi Camera fixtures.

@@ -31,7 +31,7 @@ configurable and covered by deterministic fixtures, but must be replaced or
 confirmed using actual sharp, blurry, dark, bright, and clipped Pi Camera
 fixtures before they are called calibrated.
 
-## Automated evidence
+## Original automated evidence
 
 ```text
 .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
@@ -70,3 +70,20 @@ an eligible potted plant must confirm the full `Tracking → Hold steady →
 Checking sharpness → Captured` path and verify that one, and only one, PNG is
 created. Phase 4 classification has not been started.
 
+## Post-audit correction
+
+The 2026-09-01 audit made the lock-on states externally observable, added BGR
+appearance-histogram matching, and changed automatic capture rearming so the
+same visible target cannot save again after a time-only cooldown. The target
+must leave for the configured disappearance tolerance or be replaced by a
+non-matching target. Cooldown updates no longer re-emit the prior capture, so
+saved-file metrics and logs count each file once. Automated tests cover these
+regressions; the current suite runs 30 tests.
+
+Quality/appearance thresholds and the physical stable, moving, blurry, clipped,
+disappeared, and multi-target trials remain deferred—not passed—and are listed
+in `DEFERRED_OPERATOR_ACCEPTANCE.md` for final acceptance.
+
+A post-correction headless/no-capture hardware smoke run processed 20 frames at
+5.1 FPS through the IMX708, YOLO adapter, and lock-on engine. It wrote zero crop
+files and stopped/closed the camera cleanly.

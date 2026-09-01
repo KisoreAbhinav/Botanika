@@ -10,7 +10,8 @@ classifier, API, browser UI, database, or persistent image behavior was added.
 - `backend/src/botanika/hardware/camera.py` provides the single `CameraOwner`.
 - Picamera2 is configured for the measured IMX708 `1536×864` `RGB888` preview
   stream at 30 FPS.
-- Frames are converted once from RGB888 to OpenCV BGR.
+- Picamera2's RGB888 stream is already delivered in OpenCV-compatible BGR byte
+  order. Frames are validated and made contiguous without swapping channels.
 - `tools/run_camera.py` renders a normal OpenCV window sized to `800×480`.
 - The window reports source resolution, measured FPS, successful frame count,
   and dropped-frame count. `q` and `Esc` quit.
@@ -70,3 +71,10 @@ The Stage 0 readiness report still tracks the separate human checks for camera
 orientation/autofocus, microphone intelligibility, speaker clarity, and reboot
 recovery. This Phase 1 run does not fabricate completion of those checks.
 
+## Post-audit correction
+
+The 2026-09-01 audit corrected the Picamera2 `RGB888` byte-order handling.
+Picamera2 already supplies OpenCV-ready BGR bytes, so the redundant red/blue
+swap was removed and covered by a regression test. The original five-minute
+performance measurements remain useful, but visual confirmation of correct
+colors after this correction is deferred to the final operator checklist.

@@ -167,4 +167,3 @@ def fit_frame_to_window(
         offset_x : offset_x + rendered_width,
     ] = rendered
     return canvas, transform
-

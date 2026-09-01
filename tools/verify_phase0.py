@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib
+from importlib import metadata
 import json
 import os
 from pathlib import Path
@@ -42,6 +43,9 @@ NATIVE_PACKAGES = (
     "libcamera0.7",
     "python3-libcamera",
     "python3-picamera2",
+)
+PYTHON_REQUIREMENTS_PATH = (
+    PROJECT_ROOT / "config" / "environments" / "phase0-python-requirements.txt"
 )
 
 
@@ -135,6 +139,47 @@ def import_versions() -> dict[str, dict[str, str | None]]:
             "error": None,
         }
     return versions
+
+
+def direct_python_pin_versions() -> dict[str, dict[str, str | None]]:
+    """Compare only Botanika's direct pins, excluding inherited OS metadata."""
+
+    try:
+        lines = PYTHON_REQUIREMENTS_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return {
+            "requirements": {
+                "expected": None,
+                "actual": None,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        }
+
+    results: dict[str, dict[str, str | None]] = {}
+    for line in lines:
+        requirement = line.strip()
+        if not requirement or requirement.startswith("#"):
+            continue
+        if "==" not in requirement:
+            results[requirement] = {
+                "expected": None,
+                "actual": None,
+                "error": "direct dependency is not exactly pinned",
+            }
+            continue
+        distribution, expected = requirement.split("==", 1)
+        distribution = distribution.strip()
+        expected = expected.strip()
+        try:
+            actual = metadata.version(distribution)
+        except metadata.PackageNotFoundError:
+            actual = None
+        results[distribution] = {
+            "expected": expected,
+            "actual": actual,
+            "error": None if actual == expected else "installed version does not match pin",
+        }
+    return results
 
 
 def read_temperature_celsius() -> float | None:
@@ -297,6 +342,7 @@ def collect(probe_capture: bool) -> dict[str, Any]:
     usage = shutil.disk_usage(PROJECT_ROOT)
     native_package_versions = package_versions()
     python_imports = import_versions()
+    python_pins = direct_python_pin_versions()
     meminfo: dict[str, int] = {}
     try:
         for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
@@ -347,6 +393,7 @@ def collect(probe_capture: bool) -> dict[str, Any]:
         "software": {
             "native_packages": native_package_versions,
             "imports": python_imports,
+            "direct_python_pins": python_pins,
             "commands": {
                 name: shutil.which(name)
                 for name in (
@@ -381,6 +428,17 @@ def collect(probe_capture: bool) -> dict[str, Any]:
                 "all Phase 1/2 Python imports are available"
                 if all(entry["error"] is None for entry in python_imports.values())
                 else "one or more Phase 1/2 Python imports are unavailable",
+            ),
+            "python_dependency_pins": check(
+                "PASS"
+                if python_pins
+                and all(entry["error"] is None for entry in python_pins.values())
+                else "BLOCKED",
+                "all Botanika direct Python dependency pins match"
+                if python_pins
+                and all(entry["error"] is None for entry in python_pins.values())
+                else "one or more Botanika direct Python dependency pins do not match",
+                packages=python_pins,
             ),
         },
     }
@@ -430,7 +488,15 @@ def main() -> int:
 
     if not args.strict:
         return 0
-    required = ("camera", "display", "microphone", "speaker", "storage", "python_dependencies")
+    required = (
+        "camera",
+        "display",
+        "microphone",
+        "speaker",
+        "storage",
+        "python_dependencies",
+        "python_dependency_pins",
+    )
     return 0 if all(report["checks"][name]["status"] == "PASS" for name in required) else 1
 
 

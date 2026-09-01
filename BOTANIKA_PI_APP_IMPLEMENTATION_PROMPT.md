@@ -9,6 +9,13 @@ and other earlier planning notes. Those documents remain useful for Pi module,
 vision, storage, and UI detail, but this file controls implementation order and
 the Phase 7–8 networking/pairing scope.
 
+> **Current owner-approved scheduling exception:** checks that require a person
+> to judge camera/display/audio output, arrange physical scenes, or approve a
+> reboot may be deferred to final acceptance. Continue automated implementation
+> without claiming those checks passed, and retain them in
+> `docs/DEFERRED_OPERATOR_ACCEPTANCE.md`. This is a scheduling exception, not a
+> waiver of the final acceptance criteria.
+
 ---
 
 ## Role and execution mandate

@@ -11,7 +11,6 @@ from dataclasses import dataclass
 import time
 from typing import Any, Callable, Protocol
 
-import cv2
 import numpy as np
 
 
@@ -111,8 +110,14 @@ def default_camera_factory() -> PicameraLike:
     return Picamera2()
 
 
-def convert_rgb_to_bgr(frame: np.ndarray) -> np.ndarray:
-    """Convert a Picamera2 RGB888 array to the BGR layout OpenCV expects."""
+def picamera_rgb888_to_opencv_bgr(frame: np.ndarray) -> np.ndarray:
+    """Validate a Picamera2 ``RGB888`` array for direct OpenCV use.
+
+    Picamera2 follows the libcamera/V4L2 naming convention: an ``RGB888``
+    stream is delivered to Python in BGR byte order. OpenCV therefore consumes
+    the captured array directly. Swapping its first and third channels would
+    corrupt the preview, model input, and encoded crop colors.
+    """
 
     if not isinstance(frame, np.ndarray):
         raise FrameReadError("camera returned a non-array frame")
@@ -120,7 +125,7 @@ def convert_rgb_to_bgr(frame: np.ndarray) -> np.ndarray:
         raise FrameReadError(
             f"camera returned an unexpected frame shape: {frame.shape!r}"
         )
-    return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    return np.ascontiguousarray(frame)
 
 
 class CameraOwner:
@@ -176,8 +181,8 @@ class CameraOwner:
             raise CameraStateError("camera is not running")
 
         try:
-            rgb_frame = self._camera.capture_array("main")
-            bgr_frame = convert_rgb_to_bgr(rgb_frame)
+            picamera_frame = self._camera.capture_array("main")
+            bgr_frame = picamera_rgb888_to_opencv_bgr(picamera_frame)
         except Exception as exc:
             self.dropped_frames += 1
             if isinstance(exc, FrameReadError):
@@ -220,4 +225,3 @@ class CameraOwner:
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.close()
-

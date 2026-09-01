@@ -56,5 +56,48 @@ class ProbeCameraTests(unittest.TestCase):
         self.assertEqual("BLOCKED", result["capture"]["status"])
 
 
+class DirectPythonPinTests(unittest.TestCase):
+    def test_exact_direct_pins_are_compared_to_distribution_versions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            requirements = Path(temp_dir) / "requirements.txt"
+            requirements.write_text(
+                "# direct pins\nnumpy==2.5.1\nopencv-python==5.0.0.93\n",
+                encoding="utf-8",
+            )
+            versions = {"numpy": "2.5.1", "opencv-python": "5.0.0.93"}
+            with (
+                mock.patch.object(
+                    verify_phase0, "PYTHON_REQUIREMENTS_PATH", requirements
+                ),
+                mock.patch.object(
+                    verify_phase0.metadata,
+                    "version",
+                    side_effect=lambda name: versions[name],
+                ),
+            ):
+                result = verify_phase0.direct_python_pin_versions()
+
+        self.assertTrue(all(entry["error"] is None for entry in result.values()))
+
+    def test_unpinned_or_mismatched_direct_dependency_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            requirements = Path(temp_dir) / "requirements.txt"
+            requirements.write_text(
+                "numpy>=2\nonnxruntime==1.27.0\n",
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(
+                    verify_phase0, "PYTHON_REQUIREMENTS_PATH", requirements
+                ),
+                mock.patch.object(
+                    verify_phase0.metadata, "version", return_value="1.26.0"
+                ),
+            ):
+                result = verify_phase0.direct_python_pin_versions()
+
+        self.assertIsNotNone(result["numpy>=2"]["error"])
+        self.assertIsNotNone(result["onnxruntime"]["error"])
+
 if __name__ == "__main__":
     unittest.main()

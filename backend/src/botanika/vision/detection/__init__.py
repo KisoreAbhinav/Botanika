@@ -27,9 +27,7 @@ __all__ = [
     "DetectorLoadError",
     "DetectorMetrics",
     "DetectorUnavailable",
-    "Detection",
     "ModelManifest",
     "YoloOnnxDetector",
     "fit_frame_to_window",
 ]
-

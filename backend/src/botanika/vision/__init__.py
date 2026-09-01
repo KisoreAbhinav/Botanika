@@ -1,2 +1,1 @@
 """Vision adapters for Botanika."""
-

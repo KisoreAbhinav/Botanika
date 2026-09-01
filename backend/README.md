@@ -14,11 +14,12 @@ Run the raw feed from the repository root with:
 .venv/bin/python tools/run_camera.py
 ```
 
-The default stream is the measured IMX708 1536×864 RGB888 preview mode. The
-OpenCV window is sized to 800×480 and displays frame count, measured FPS, and
-dropped-frame count. Press `q` or `Esc` to stop. Use `--seconds` or
-`--max-frames` for bounded checks, and `--headless` only for non-display smoke
-tests.
+The default stream is the measured IMX708 1536×864 RGB888 preview mode.
+Picamera2 exposes that stream in OpenCV-ready BGR byte order, so frames are
+validated but not channel-swapped. The OpenCV window is sized to 800×480 and
+displays frame count, measured FPS, and dropped-frame count. Press `q` or `Esc`
+to stop. Use `--seconds` or `--max-frames` for bounded checks, and `--headless`
+only for non-display smoke tests.
 
 Phase 2 adds the generic ONNX Runtime detector under
 [`src/botanika/vision/detection/`](src/botanika/vision/detection/). It is a
@@ -38,4 +39,6 @@ integrated debug loop with:
 ```
 
 The current default quality thresholds are explicitly marked as an unvalidated
-Pi-camera baseline in `config/vision/phase3-quality-baseline.json`.
+Pi-camera baseline in `config/vision/phase3-quality-baseline.json`. Appearance
+matching participates in tracking, and automatic capture does not rearm until
+the captured target leaves or is replaced.

@@ -22,3 +22,13 @@ Each numbered build phase in the full prompt has its own work list, tests, and
 “you know it worked when” gate. Implement only one phase per handoff. Do not skip
 ahead, and do not begin networking before the complete real-species standalone
 Pi flow passes.
+
+## Current operator-check scheduling note
+
+The project owner has temporarily deferred checks that require a person to
+judge the display/camera/audio, arrange physical test scenes, or reboot the Pi.
+This changes scheduling only: automated implementation and verification may
+continue, but deferred observations must never be reported as passed. Track and
+complete them together using
+[`docs/DEFERRED_OPERATOR_ACCEPTANCE.md`](docs/DEFERRED_OPERATOR_ACCEPTANCE.md)
+before final release acceptance.

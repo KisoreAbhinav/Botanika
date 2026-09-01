@@ -8,7 +8,7 @@ from botanika.hardware.camera import (
     CameraOpenError,
     CameraOwner,
     FrameReadError,
-    convert_rgb_to_bgr,
+    picamera_rgb888_to_opencv_bgr,
 )
 
 
@@ -49,17 +49,20 @@ class FakeCamera:
 
 
 class CameraOwnerTests(unittest.TestCase):
-    def test_rgb888_is_converted_to_bgr_without_changing_shape(self):
-        rgb = np.array([[[10, 20, 30], [40, 50, 60]]], dtype=np.uint8)
+    def test_picamera_rgb888_is_already_opencv_bgr(self):
+        picamera_rgb888 = np.array(
+            [[[10, 20, 200], [40, 50, 160]]], dtype=np.uint8
+        )
 
-        bgr = convert_rgb_to_bgr(rgb)
+        bgr = picamera_rgb888_to_opencv_bgr(picamera_rgb888)
 
-        self.assertEqual(bgr.tolist(), [[[30, 20, 10], [60, 50, 40]]])
-        self.assertEqual(bgr.shape, rgb.shape)
+        self.assertEqual(bgr.tolist(), picamera_rgb888.tolist())
+        self.assertEqual(bgr.shape, picamera_rgb888.shape)
+        self.assertTrue(bgr.flags.c_contiguous)
 
     def test_invalid_frame_shape_is_rejected(self):
         with self.assertRaisesRegex(FrameReadError, "unexpected frame shape"):
-            convert_rgb_to_bgr(np.zeros((4, 4), dtype=np.uint8))
+            picamera_rgb888_to_opencv_bgr(np.zeros((4, 4), dtype=np.uint8))
 
     def test_camera_config_has_measured_preview_defaults(self):
         config = CameraConfig()
@@ -80,7 +83,7 @@ class CameraOwnerTests(unittest.TestCase):
         self.assertFalse(owner.is_running)
         self.assertEqual(result.sequence, 1)
         self.assertEqual(result.captured_at, 12.5)
-        self.assertEqual(result.image.tolist(), [[[3, 2, 1]]])
+        self.assertEqual(result.image.tolist(), [[[1, 2, 3]]])
         self.assertEqual(owner.frames_read, 1)
         self.assertEqual(owner.dropped_frames, 0)
         self.assertTrue(fake.closed)

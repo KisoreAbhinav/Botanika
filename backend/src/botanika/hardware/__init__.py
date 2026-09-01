@@ -8,7 +8,7 @@ from .camera import (
     CameraOwner,
     CameraStateError,
     FrameReadError,
-    convert_rgb_to_bgr,
+    picamera_rgb888_to_opencv_bgr,
 )
 
 __all__ = [
@@ -19,5 +19,5 @@ __all__ = [
     "CameraOwner",
     "CameraStateError",
     "FrameReadError",
-    "convert_rgb_to_bgr",
+    "picamera_rgb888_to_opencv_bgr",
 ]

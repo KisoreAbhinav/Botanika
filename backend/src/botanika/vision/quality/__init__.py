@@ -22,4 +22,3 @@ __all__ = [
     "evaluate_crop",
     "select_candidate",
 ]
-

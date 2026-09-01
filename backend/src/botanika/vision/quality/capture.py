@@ -111,4 +111,3 @@ def _padded_box(box: BoundingBox, padding_ratio: float) -> BoundingBox:
     pad_x = box.width * padding_ratio
     pad_y = box.height * padding_ratio
     return BoundingBox(box.x1 - pad_x, box.y1 - pad_y, box.x2 + pad_x, box.y2 + pad_y)
-
