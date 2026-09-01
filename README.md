@@ -11,6 +11,7 @@ local capability at a time.
 
 ## Start here
 
+- [Complete Pi app implementation prompt](BOTANIKA_PI_APP_IMPLEMENTATION_PROMPT.md)
 - [Pi-only starter prompt](prompt.md)
 - [Pi architecture and implementation roadmap](docs/PI_ARCHITECTURE_AND_ROADMAP.md)
 - [Stage 0 hardware-readiness runbook](docs/STAGE0_TEST_RUNBOOK.md)
