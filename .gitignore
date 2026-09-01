@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Web tooling
+node_modules/
+frontend/dist/
+frontend/.vite/
+coverage/
+
+# Secrets and environment-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+deploy/cloudflared/*.json
+deploy/cloudflared/config.yml
+
+# Runtime state and user-generated media
+data/database/*.db
+data/database/*.db-*
+data/media/discoveries/*
+!data/media/discoveries/.gitkeep
+data/media/temp/*
+!data/media/temp/.gitkeep
+logs/
+runtime/
+
+# Large model and knowledge artifacts (keep manifests/README files)
+models/**/*.onnx
+models/**/*.tflite
+models/**/*.pt
+models/**/*.pth
+models/**/*.gguf
+models/**/*.bin
+data/knowledge/*.jsonl
+data/knowledge/*.parquet
+data/vectors/*
+!data/vectors/.gitkeep
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
