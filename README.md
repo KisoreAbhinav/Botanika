@@ -11,6 +11,7 @@ application code or model binaries yet.
 
 ## Start here
 
+- [Phone ↔ Pi connectivity implementation guide](PHONE_PI_CONNECTIVITY_IMPLEMENTATION.md)
 - [Pi architecture and implementation roadmap](docs/PI_ARCHITECTURE_AND_ROADMAP.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)
