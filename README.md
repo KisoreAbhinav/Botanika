@@ -6,12 +6,15 @@ and answering botanical questions by voice. The Pi is the single backend and
 knowledge source; the same e-ink-themed web interface is intended to run on the
 Pi screen and in a phone browser.
 
-This repository is currently in its **architecture-only phase**. It contains no
-application code or model binaries yet.
+This repository now contains the first connectivity-stage application slice:
+the loopback-bound FastAPI origin, crop receipt contract, status WebSocket, and
+dependency-free browser placeholder. Model binaries and the later botanical
+application stages are not included yet.
 
 ## Start here
 
 - [Phone ↔ Pi connectivity implementation guide](PHONE_PI_CONNECTIVITY_IMPLEMENTATION.md)
+- [Stage 0 deployment and test runbook](docs/STAGE0_TEST_RUNBOOK.md)
 - [Pi architecture and implementation roadmap](docs/PI_ARCHITECTURE_AND_ROADMAP.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)

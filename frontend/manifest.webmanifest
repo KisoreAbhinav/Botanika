@@ -1,0 +1,9 @@
+{
+  "name": "Botanika Pi connectivity",
+  "short_name": "Botanika",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef0e6",
+  "theme_color": "#24583d",
+  "description": "Botanika phone-to-Pi connectivity test client"
+}

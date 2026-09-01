@@ -1,0 +1,24 @@
+[Unit]
+Description=Botanika named Cloudflare Tunnel
+After=network-online.target botanika-backend.service nginx.service
+Wants=network-online.target
+Requires=botanika-backend.service nginx.service
+
+[Service]
+Type=simple
+User=botanika
+Group=botanika
+EnvironmentFile=/etc/botanika/cloudflared.env
+ExecStart=/usr/bin/cloudflared tunnel run --token ${TUNNEL_TOKEN}
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

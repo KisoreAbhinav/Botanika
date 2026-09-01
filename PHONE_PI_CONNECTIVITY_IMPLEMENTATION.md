@@ -5,8 +5,8 @@ Raspberry Pi can be on completely different networks, connect securely through a
 normal phone browser, and exchange a cropped plant image without transmitting
 live video or the complete camera frame.
 
-**Status:** implementation plan only. This document intentionally contains no
-application code.
+**Status:** first-stage implementation is present in this repository; Cloudflare
+account, hostname, and physical Pi/phone validation remain operator steps.
 
 **Target result:** the phone opens one stable HTTPS address, authenticates,
 connects to the Pi, and can send one binary image crop to a Pi endpoint. The Pi
@@ -527,7 +527,8 @@ pairing state.
 These are starting boundaries to benchmark, not permanent accuracy choices:
 
 - desired crop payload: normally below 1 MB;
-- hard server request limit: initially 5 MB;
+- hard server request envelope: initially 6 MiB, containing a maximum 5 MiB
+  image part plus multipart/metadata overhead;
 - accepted formats: JPEG and WebP after decode verification;
 - one active classification request per controller;
 - short queue with a visible busy state;

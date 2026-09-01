@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#eef0e6" />
+    <meta name="description" content="Botanika phone-to-Raspberry Pi connectivity test" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/src/placeholder.css" />
+    <title>Botanika · Pi connection</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand" aria-labelledby="page-title">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <p class="eyebrow">FIELD INTELLIGENCE · CONNECTIVITY STAGE</p>
+          <h1 id="page-title">Botanika</h1>
+          <p class="subtitle">A quiet bridge between your phone and the Pi.</p>
+        </div>
+      </header>
+
+      <section class="status-card" aria-labelledby="status-heading">
+        <div class="status-line">
+          <span id="status-dot" class="status-dot offline" aria-hidden="true"></span>
+          <div>
+            <h2 id="status-heading">Pi connection</h2>
+            <p id="connection-state" role="status">Connecting to the local status channel…</p>
+          </div>
+        </div>
+        <dl class="runtime-details">
+          <div><dt>Environment</dt><dd id="environment">—</dd></div>
+          <div><dt>Transport</dt><dd>HTTPS crop upload · WSS status</dd></div>
+          <div><dt>Video frames sent</dt><dd>None</dd></div>
+        </dl>
+      </section>
+
+      <section class="capture-card" aria-labelledby="capture-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">TEMPORARY TEST</p>
+            <h2 id="capture-heading">Send one crop</h2>
+          </div>
+          <span class="pill">Binary only</span>
+        </div>
+        <p class="help-text">
+          Choose a small JPEG or WebP plant crop. It is decoded in memory,
+          acknowledged, hashed, and discarded by the Pi. A complete camera
+          frame is never requested or uploaded in this stage.
+        </p>
+
+        <label class="file-picker" for="image-input">
+          <span class="file-icon" aria-hidden="true">＋</span>
+          <span>
+            <strong>Select a test crop</strong>
+            <small>JPEG or WebP · maximum 5 MiB image</small>
+          </span>
+        </label>
+        <input id="image-input" type="file" accept="image/jpeg,image/webp" />
+
+        <div id="preview-panel" class="preview-panel" hidden>
+          <img id="preview" alt="Selected plant crop preview" />
+          <div class="preview-copy">
+            <strong id="file-name">—</strong>
+            <p id="file-details">—</p>
+            <p id="client-hash" class="hash">—</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="upload-button" class="primary" type="button" disabled>Send crop to Pi</button>
+          <button id="cancel-button" class="quiet" type="button" hidden>Cancel</button>
+        </div>
+        <p id="upload-state" class="upload-state" role="status" aria-live="polite"></p>
+        <pre id="receipt" class="receipt" hidden aria-label="Pi receipt"></pre>
+      </section>
+
+      <footer>
+        <span>SOLO remains local when the Pi has no internet.</span>
+        <span id="build-label">Build —</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/placeholder.js"></script>
+  </body>
+</html>
