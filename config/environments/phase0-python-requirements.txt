@@ -1,0 +1,10 @@
+# Botanika Phase 0 direct Python runtime pins.
+#
+# Picamera2 and libcamera are native Raspberry Pi OS packages, not PyPI
+# dependencies. Keep their apt pins in phase0-native-packages.txt.
+# OpenCV and NumPy are intentionally pinned here for the Python camera path.
+# ONNX Runtime is the selected YOLO-compatible runtime; a model is not
+# activated until a later phase records its own provenance and Pi benchmark.
+numpy==2.5.1
+opencv-python==5.0.0.93
+onnxruntime==1.27.0

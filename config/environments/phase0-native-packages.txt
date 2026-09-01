@@ -1,0 +1,9 @@
+# Botanika Phase 0 native Raspberry Pi OS packages.
+# Install with the supported apt workflow on the target Pi. The versions below
+# are the versions observed after the supported 2026-09-01 package upgrade;
+# verify availability before installing on another Pi.
+rpicam-apps=1.13.0-1
+libcamera0.7=0.7.2+rpt20260817-1
+python3-libcamera=0.7.2+rpt20260817-1
+python3-picamera2=0.3.37-1
+python3-venv=3.13.5-1

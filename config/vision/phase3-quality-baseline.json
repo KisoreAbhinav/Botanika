@@ -1,0 +1,11 @@
+{
+  "calibration_status": "baseline_unvalidated",
+  "calibration_note": "Replace with measured sharp, blurry, dark, bright, and clipped Pi Camera fixtures before declaring thresholds calibrated.",
+  "min_target_width": 80,
+  "min_target_height": 80,
+  "min_laplacian_variance": 100.0,
+  "min_mean_luma": 25.0,
+  "max_mean_luma": 235.0,
+  "max_saturated_fraction": 0.08,
+  "edge_margin_ratio": 0.01
+}

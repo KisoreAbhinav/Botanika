@@ -9,6 +9,8 @@ Tests will be organized by:
 - latency, memory, thermal, and soak performance;
 - licensed or synthetic fixtures.
 
-The repository currently contains no executable application tests because the
-implementation has been reset. Stage 0 produces a hardware-readiness report;
-tests begin with the Stage 1 local application foundation.
+Phase 1 begins the executable test boundary with hardware-independent camera
+configuration, RGB888-to-BGR conversion, lifecycle, dropped-frame, and partial
+startup cleanup tests. Phase 2 adds detector contract/coordinate tests; Phase 3
+adds deterministic tracking, quality, cooldown, and crop-only filesystem tests.
+Hardware checks remain separate and are run on the Pi.
