@@ -1,7 +1,9 @@
 # Pi-Only Repository Structure
 
-The repository is intentionally an empty implementation skeleton. `.gitkeep`
-files preserve the planned module boundaries until each stage is authorized.
+The repository is a phased implementation skeleton. `.gitkeep` files preserve
+planned module boundaries until each stage is authorized, while the completed
+camera, detector, quality, crop, and Phase 4 classification slices are kept
+under their runtime package boundaries.
 
 ```text
 Botanika/

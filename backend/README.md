@@ -42,3 +42,19 @@ The current default quality thresholds are explicitly marked as an unvalidated
 Pi-camera baseline in `config/vision/phase3-quality-baseline.json`. Appearance
 matching participates in tracking, and automatic capture does not rearm until
 the captured target leaves or is replaced.
+
+Phase 4 adds the reusable species-classification boundary under
+[`src/botanika/vision/classification/`](src/botanika/vision/classification/).
+`ClassificationPipeline` passes each successful crop path directly to the
+classifier and associates the result with the crop hash and timing. The only
+available implementation is `DummyClassifier`, version `stub-phase-4`; every
+response is marked `is_stub: true` and `DEMO DATA`. Run the complete diagnostic
+loop with:
+
+```sh
+.venv/bin/python tools/run_phase4.py --headless --max-frames 60
+```
+
+Use `--demo-case uncertain`, `--demo-case error`, or `--demo-case cancelled` to
+exercise deterministic non-success responses. This phase does not download,
+train, or validate a species model.

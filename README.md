@@ -4,10 +4,10 @@ Botanika is a standalone Raspberry Pi 5 field-intelligence application for
 identifying native plants, keeping a local discovery library, detecting weeds,
 and answering botanical questions through an offline voice-enabled interface.
 
-The project has been reset to a **Pi-only architecture baseline**. There is no
-application implementation or model binary in the repository yet. The next
-development pass should begin from the staged prompt and implement one verified
-local capability at a time.
+The project follows a **Pi-only architecture baseline** and is delivered one
+verified local capability at a time. The current implementation covers the
+camera owner, generic detector, lock-on/crop gate, and the Phase 4 classifier
+pipeline stub; no production species model is included.
 
 ## Start here
 
@@ -19,6 +19,7 @@ local capability at a time.
 - [Phase 1 raw-feed report](docs/PHASE1_RAW_FEED_REPORT_2026-09-01.md)
 - [Phase 2 generic detection report](docs/PHASE2_GENERIC_DETECTION_REPORT_2026-09-01.md)
 - [Phase 3 lock-on report](docs/PHASE3_LOCK_ON_REPORT_2026-09-01.md)
+- [Phase 4 classifier report](docs/PHASE4_CLASSIFIER_REPORT_2026-09-01.md)
 - [Deferred final operator acceptance](docs/DEFERRED_OPERATOR_ACCEPTANCE.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)

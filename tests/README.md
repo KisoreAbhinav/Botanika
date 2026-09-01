@@ -14,4 +14,7 @@ configuration, Picamera2 RGB888/OpenCV byte-order validation, lifecycle,
 dropped-frame, and partial-startup cleanup tests. Phase 2 adds detector
 contract/coordinate tests; Phase 3 adds deterministic tracking, quality,
 cooldown, rearming, appearance, and crop-only filesystem tests. Hardware checks
-remain separate and are run on the Pi.
+remain separate and are run on the Pi. Phase 4 adds classifier schema,
+deterministic stub, crop-path handoff, timing/result association, accepted,
+uncertain, error, cancellation, malformed-image, and full camera-to-stub
+integration coverage.

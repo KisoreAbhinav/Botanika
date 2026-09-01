@@ -46,6 +46,14 @@ measured evidence and an operator result.
 - Inspect saved pixels to confirm only the padded crop is present, colors are
   natural, and no full-frame file was written.
 
+## Phase 4 classifier display
+
+- With an eligible target held steady, confirm the accepted crop automatically
+  reaches the Phase 4 diagnostic and that the result visibly says `DEMO DATA`,
+  `stub-phase-4`, and fake/demo rather than implying a real identification.
+- Confirm an uncertain demo result is shown as `Not confident` and does not
+  offer a confirmed-species save action.
+
 ## Final evidence
 
 For each check, record the date, command/configuration, measured result,

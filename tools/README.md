@@ -90,3 +90,27 @@ or `Esc` to quit. Use `--no-auto-capture` to inspect the lock without writing.
 After a capture, the target must leave or be replaced before automatic capture
 rearms. Quality values and the `--appearance-similarity` default are
 unvalidated baselines that must be calibrated on real Pi Camera fixtures.
+
+## Phase 4 crop-to-classifier pipeline
+
+Run the Phase 0–3 camera, generic detection, stability, quality, and crop path
+with the deterministic classifier stub:
+
+```sh
+.venv/bin/python tools/run_phase4.py
+.venv/bin/python tools/run_phase4.py --headless --max-frames 60
+```
+
+An accepted crop is passed directly to `ClassificationPipeline`, which prints
+the crop path, hash association, timing, fake species details, and the visible
+`DEMO DATA` warning. The stub never represents a real plant identification.
+Exercise the deterministic terminal paths with:
+
+```sh
+.venv/bin/python tools/run_phase4.py --demo-case uncertain
+.venv/bin/python tools/run_phase4.py --demo-case error
+.venv/bin/python tools/run_phase4.py --demo-case cancelled
+```
+
+Malformed image handling is covered by the unit contract tests; the live loop
+only sends successfully written crop files to the classifier.

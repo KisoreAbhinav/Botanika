@@ -223,6 +223,7 @@ def run_lock_on(
     detector: YoloOnnxDetector | None = None,
     cv2_module: Any = cv2,
     clock: Callable[[], float] = time.monotonic,
+    on_capture: Callable[[CaptureResult], None] | None = None,
 ) -> LockOnFeedStats:
     stats = LockOnFeedStats(started_at=clock())
     active_detector = detector or YoloOnnxDetector(
@@ -249,6 +250,14 @@ def run_lock_on(
     camera = CameraOwner(**camera_kwargs)
     window_created = False
     consecutive_drops = 0
+
+    def report_capture(capture: CaptureResult) -> None:
+        if capture.path is not None:
+            LOGGER.info("Saved crop-only capture: %s", capture.path)
+        elif capture.duplicate:
+            LOGGER.info("Skipped duplicate crop: %s", capture.content_hash[:12])
+        if on_capture is not None and capture.path is not None:
+            on_capture(capture)
 
     try:
         active_detector.load()
@@ -282,10 +291,7 @@ def run_lock_on(
             update = engine.update(captured.image, detections)
             stats.update(clock(), update.capture)
             if update.capture is not None:
-                if update.capture.path is not None:
-                    LOGGER.info("Saved crop-only capture: %s", update.capture.path)
-                elif update.capture.duplicate:
-                    LOGGER.info("Skipped duplicate crop: %s", update.capture.content_hash[:12])
+                report_capture(update.capture)
 
             if not headless:
                 display_frame = draw_lock_on_frame(
@@ -302,8 +308,7 @@ def run_lock_on(
                     manual_update = engine.manual_capture(captured.image)
                     if manual_update.capture is not None:
                         stats.record_capture(manual_update.capture)
-                        if manual_update.capture.path is not None:
-                            LOGGER.info("Saved manual crop-only capture: %s", manual_update.capture.path)
+                        report_capture(manual_update.capture)
                 if key in (ord("q"), 27):
                     break
 

@@ -68,7 +68,9 @@ Observed result:
 The no-target result is expected for the current scene. A physical trial with
 an eligible potted plant must confirm the full `Tracking → Hold steady →
 Checking sharpness → Captured` path and verify that one, and only one, PNG is
-created. Phase 4 classification has not been started.
+created. At the time of this Phase 3 report, Phase 4 classification had not
+been started; its current implementation is recorded separately in
+`PHASE4_CLASSIFIER_REPORT_2026-09-01.md`.
 
 ## Post-audit correction
 
