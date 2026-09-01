@@ -5,14 +5,14 @@
 
 ## Context
 
-Classification, RAG, voice, camera, storage, pairing, and web APIs share one Pi.
+Classification, RAG, voice, camera, storage, and local web APIs share one Pi.
 They need coordinated CPU/RAM budgets and exclusive camera/audio ownership.
 
 ## Decision
 
 Implement one FastAPI process boundary with explicit internal modules and one
-inference coordinator. Run infrastructure concerns such as the reverse proxy,
-tunnel, and kiosk browser as separate supervised processes.
+inference coordinator. Run the kiosk browser and any required maintenance jobs
+as separate supervised processes.
 
 ## Consequences
 

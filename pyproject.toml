@@ -1,5 +1,0 @@
-[tool.pytest.ini_options]
-pythonpath = ["backend/src"]
-testpaths = ["tests"]
-addopts = "-ra"
-asyncio_mode = "auto"

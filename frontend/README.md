@@ -1,12 +1,10 @@
-# Web interface boundary
+# Local Kiosk Interface
 
-This directory contains the install-free responsive PWA placeholder for the
-connectivity stage. It can be served directly by the supplied reverse-proxy
-template or by the FastAPI development server. It lets a phone select one
-small JPEG/WebP test crop, shows local dimensions and hash, uploads binary
-multipart data to the same origin, and displays the Pi receipt.
+This directory will contain one responsive web interface served on loopback and
+displayed by a fullscreen browser on the Pi screen.
 
-The status WebSocket reconnects with bounded exponential backoff. It carries
-small state events only. There is no camera stream, video element, screenshot
-loop, or full-frame upload in this stage. Later scan work belongs under
-`src/features/scan` and must preserve this crop-only boundary.
+The frontend owns presentation, local interaction, camera overlay rendering, and
+accessibility. The backend remains authoritative for hardware, classification,
+botanical knowledge, and discovery data.
+
+No frontend implementation exists yet.

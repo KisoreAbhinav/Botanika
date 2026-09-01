@@ -1,5 +1,5 @@
-# Operator and preparation tools
+# Operator and Preparation Tools
 
-Future one-shot tools will prepare the species database, verify model assets,
-calibrate camera-quality thresholds, benchmark inference, back up user data,
-and run deployment checks. Runtime request handling does not belong here.
+Future tools will support hardware checks, camera-quality calibration, dataset
+and knowledge preparation, model verification, Pi benchmarking, backup, and
+restore. Runtime request handling must not import from this directory.

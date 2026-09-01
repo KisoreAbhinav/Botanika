@@ -1,102 +1,91 @@
-# Repository Structure
+# Pi-Only Repository Structure
 
-This skeleton is intentionally organized around ownership and runtime boundaries
-before code exists. Empty leaf directories contain `.gitkeep` so Git preserves
-the planned shape.
+The repository is intentionally an empty implementation skeleton. `.gitkeep`
+files preserve the planned module boundaries until each stage is authorized.
 
 ```text
 Botanika/
 ├── backend/
 │   └── src/botanika/
-│       ├── api/                 # HTTP/WS adapters and schemas
-│       ├── core/                # settings, errors, lifecycle, inference budget
-│       ├── modes/               # SOLO/NETWORKED state and policy
-│       ├── pairing/             # ticket, session, lease, heartbeat
+│       ├── api/                 # Local API adapters and schemas
+│       ├── core/                # Settings, lifecycle, errors, capabilities
+│       ├── hardware/            # Camera/audio/display adapters (future)
 │       ├── vision/
-│       │   ├── detection/       # Pi-camera detector adapter
-│       │   ├── classification/  # species model registry and ranking
-│       │   ├── quality/         # server validation/calibration contracts
-│       │   └── weeds/           # independent weed-beta inference
-│       ├── knowledge/           # retrieval, citations, online fallback
-│       ├── voice/               # STT/TTS/audio ownership and voice intents
-│       ├── discoveries/         # aggregate and weed observations
-│       ├── storage/             # SQLite repositories/migrations/backups
-│       └── observability/       # health, metrics, redacted events
+│       │   ├── detection/       # Plant/organ detector
+│       │   ├── quality/         # Stability, focus, exposure, crop
+│       │   ├── classification/  # Regional species classifier
+│       │   └── weeds/           # Dedicated beta detector
+│       ├── knowledge/           # Retrieval, citations, grounded chat
+│       ├── voice/               # STT, TTS, audio ownership
+│       ├── discoveries/         # Save/group/export/delete behavior
+│       ├── storage/             # SQLite migrations/repositories/backups
+│       └── observability/       # Health, metrics, redacted logging
 ├── frontend/
 │   ├── public/
-│   │   ├── brand/               # Botanika logo and decorative foliage
-│   │   ├── models/              # browser detector artifacts/manifests
-│   │   └── maps/                # regional tile/style assets
+│   │   ├── brand/               # Wordmark and decorative foliage
+│   │   ├── models/              # Only if browser runtime is later justified
+│   │   └── maps/                # Reserved; no map without GNSS
 │   └── src/
-│       ├── app/                 # routes, boot, capability/profile selection
-│       ├── components/          # accessible shared UI primitives
+│       ├── app/                 # Routes, boot, capabilities
+│       ├── components/          # Accessible shared primitives
 │       ├── features/
-│       │   ├── home/            # three-action e-ink homepage
-│       │   ├── scan/            # live boxes, lock, crop, result, save
-│       │   ├── library/         # map/list/details and species grouping
-│       │   ├── weeds/           # beta camera/upload and coordinates
-│       │   ├── chat/            # Pi botanical guide UI
-│       │   └── pairing/         # placeholder, code, controller console
+│       │   ├── home/            # E-ink three-action homepage
+│       │   ├── scan/            # Pi Camera preview and scan flow
+│       │   ├── library/         # Local list/details/history
+│       │   ├── chat/            # Offline botanical guide
+│       │   └── weeds/           # Final beta UI
 │       ├── platform/
-│       │   ├── camera/          # browser/Pi camera capability adapter
-│       │   ├── geolocation/     # permission, accuracy, timeout
-│       │   ├── inference/       # ONNX Runtime Web worker adapter
-│       │   ├── storage/         # IndexedDB schema and migrations
-│       │   └── realtime/        # WebSocket state/reconnect
-│       └── theme/               # e-ink tokens, responsive/accessibility rules
+│       │   ├── camera/          # Local camera UI adapter
+│       │   ├── inference/       # Local UI/model adapter if needed
+│       │   └── storage/         # UI cache/preferences, not authority
+│       └── theme/               # E-ink tokens and accessibility
 ├── config/
-│   ├── environments/            # versioned non-secret defaults
-│   └── models/                  # runtime model contracts and registry
+│   ├── environments/            # Versioned non-secret local defaults
+│   └── models/                  # Runtime model registry/contracts
 ├── data/
-│   ├── seed/                    # small curated/reproducible seed inputs
-│   ├── knowledge/               # source manifests and prepared corpus
-│   ├── vectors/                 # generated embedding index (ignored)
-│   ├── database/                # generated SQLite state (ignored)
+│   ├── seed/                    # Small reproducible seed inputs
+│   ├── knowledge/               # Source manifests/prepared corpus
+│   ├── vectors/                 # Generated embedding index
+│   ├── database/                # Generated SQLite files
 │   └── media/
-│       ├── discoveries/         # reserved opt-in Pi media state (ignored)
-│       └── temp/                # short-lived uploads (ignored)
+│       ├── discoveries/         # Saved crop-only library images
+│       └── temp/                # Transient capture/crop work
 ├── models/
-│   ├── detectors/               # local plant/organ detector contract
-│   ├── plant_classifier/        # regional classifier contract
-│   ├── weed_detector/           # crop/region-specific detector contract
-│   ├── stt/                     # Vosk/Whisper assets and provenance
-│   ├── tts/                     # Piper assets and provenance
-│   ├── llm/                     # GGUF guide model and license
-│   └── embeddings/              # retrieval encoder contract
+│   ├── detectors/
+│   ├── plant_classifier/
+│   ├── weed_detector/
+│   ├── stt/
+│   ├── tts/
+│   ├── llm/
+│   └── embeddings/
 ├── deploy/
-│   ├── cloudflared/             # tunnel templates; never credentials
-│   ├── reverse_proxy/           # local ingress/static proxy configuration
-│   ├── systemd/                 # services, ordering, sandboxing
-│   └── kiosk/                   # Pi display/browser session
+│   ├── systemd/                 # Local backend/maintenance units
+│   └── kiosk/                   # Fullscreen Pi browser session
 ├── tests/
-│   ├── contract/                # API/model/data contract verification
-│   ├── integration/             # module/database/model composition
-│   ├── e2e/                     # phone and kiosk browser journeys
-│   ├── hardware/                # Pi camera/audio/network checks
-│   ├── performance/             # latency, memory, thermal, soak tests
-│   └── fixtures/                # licensed synthetic/test-only assets
-├── tools/                       # preparation, benchmark, backup, verification
+│   ├── contract/
+│   ├── integration/
+│   ├── e2e/
+│   ├── hardware/
+│   ├── performance/
+│   └── fixtures/
+├── tools/                       # Calibration, preparation, backup, benchmark
 ├── docs/
 │   ├── PI_ARCHITECTURE_AND_ROADMAP.md
 │   ├── REPOSITORY_STRUCTURE.md
-│   └── decisions/               # short architecture-decision records
-├── prompt.md                    # original brief and precedence context
+│   ├── STAGE0_TEST_RUNBOOK.md
+│   └── decisions/
+├── prompt.md                    # Authoritative next-session instructions
 ├── .gitignore
 └── README.md
 ```
 
 ## Boundary rules
 
-1. `backend` is runtime code; large artifacts live in `models` or generated
-   `data`, not inside Python packages.
-2. `frontend` owns per-frame detection and the personal browser library. It does
-   not contain species facts or authoritative model decisions.
-3. `config` is versioned and non-secret. Credentials and local overrides are
-   deployment state.
-4. `data/seed` and source manifests are reproducible inputs. Database, vectors,
-   temporary images, and personal data are generated outputs.
-5. `models` requires a complete model contract before weights are enabled.
-6. `deploy` contains templates and units, never tunnel credentials or private
-   keys.
-7. `tools` may prepare runtime assets but is not imported by request handlers.
-8. `tests/fixtures` may not contain a user’s real discovery image or location.
+1. The backend owns hardware, authoritative data, and inference decisions.
+2. The frontend is a local kiosk and never becomes the source of botanical facts.
+3. Generated data and large models remain outside source packages and normal Git
+   history.
+4. Every model needs a complete contract and Pi benchmark before activation.
+5. `tools` prepares or verifies assets but is not imported by request handlers.
+6. Runtime services bind to loopback during the Pi-only phase.
+7. Tests use synthetic/licensed fixtures, never real personal discovery data.

@@ -22,8 +22,6 @@ coverage/
 *.pem
 *.key
 *.crt
-deploy/cloudflared/*.json
-deploy/cloudflared/config.yml
 
 # Runtime state and user-generated media
 data/database/*.db

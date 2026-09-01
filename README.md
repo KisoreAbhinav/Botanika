@@ -1,29 +1,28 @@
 # Botanika
 
-Botanika is a Raspberry Pi 5 field-intelligence system for identifying native
-plants, recording discoveries, mapping conservation context, detecting weeds,
-and answering botanical questions by voice. The Pi is the single backend and
-knowledge source; the same e-ink-themed web interface is intended to run on the
-Pi screen and in a phone browser.
+Botanika is a standalone Raspberry Pi 5 field-intelligence application for
+identifying native plants, keeping a local discovery library, detecting weeds,
+and answering botanical questions through an offline voice-enabled interface.
 
-This repository now contains the first connectivity-stage application slice:
-the loopback-bound FastAPI origin, crop receipt contract, status WebSocket, and
-dependency-free browser placeholder. Model binaries and the later botanical
-application stages are not included yet.
+The project has been reset to a **Pi-only architecture baseline**. There is no
+application implementation or model binary in the repository yet. The next
+development pass should begin from the staged prompt and implement one verified
+local capability at a time.
 
 ## Start here
 
-- [Phone ↔ Pi connectivity implementation guide](PHONE_PI_CONNECTIVITY_IMPLEMENTATION.md)
-- [Stage 0 deployment and test runbook](docs/STAGE0_TEST_RUNBOOK.md)
+- [Pi-only starter prompt](prompt.md)
 - [Pi architecture and implementation roadmap](docs/PI_ARCHITECTURE_AND_ROADMAP.md)
+- [Stage 0 hardware-readiness runbook](docs/STAGE0_TEST_RUNBOOK.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)
-- [Original project brief](prompt.md)
 
 ## Current scope
 
-The current design covers the Pi-hosted backend, the Pi-served web application,
-Pi camera/kiosk behavior, internet-routable phone access, offline botanical
-knowledge, voice control, storage, deployment, and verification boundaries.
-Training pipelines and drone actuation are deliberately outside the first
-implementation scope.
+- Raspberry Pi 5, Pi Camera, screen, microphone, speaker, and SSD
+- One locally hosted web interface displayed in a Pi kiosk browser
+- Local plant detection, crop-quality checks, and species classification
+- Local SQLite knowledge and discovery data
+- Local cropped discovery images
+- Offline botanical RAG, speech-to-text, and text-to-speech
+- Weed detection as the final beta stage
