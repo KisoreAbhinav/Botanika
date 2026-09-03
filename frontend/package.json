@@ -1,0 +1,21 @@
+{
+  "name": "botanika-kiosk",
+  "private": true,
+  "version": "0.6.0",
+  "type": "module",
+  "description": "Botanika Phase 6 standalone 800x480 kiosk interface (SOLO).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node src/features/scan/scanState.test.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}

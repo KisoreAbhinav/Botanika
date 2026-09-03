@@ -102,7 +102,18 @@ class ClassificationTests(unittest.TestCase):
         self.assertEqual(result.status, ClassificationStatus.UNCERTAIN)
         self.assertIsNone(result.species_id)
         self.assertTrue(result.suggestions)
+        self.assertLess(result.confidence, 0.75)
         self.assertEqual(result.display_label, "DEMO DATA: Not confident")
+
+    def test_low_confidence_path_preserves_the_configured_confidence(self):
+        result = DummyClassifier(
+            confidence=0.74,
+            acceptance_threshold=0.75,
+        ).classify(valid_image())
+
+        self.assertEqual(result.status, ClassificationStatus.UNCERTAIN)
+        self.assertEqual(result.confidence, 0.74)
+        self.assertEqual(result.suggestions[0].confidence, 0.74)
 
     def test_error_and_cancellation_stub_paths_are_explicit(self):
         error = DummyClassifier(scenario=DummyScenario.ERROR).classify(valid_image())
@@ -124,11 +135,48 @@ class ClassificationTests(unittest.TestCase):
     def test_malformed_image_returns_a_schema_valid_failure(self):
         malformed = DummyClassifier().classify(np.zeros((10, 10), dtype=np.uint8))
         missing = DummyClassifier().classify(Path("/tmp/does-not-exist-botanika-crop.png"))
+        nan_pixels = DummyClassifier().classify(
+            np.full((10, 10, 3), np.nan, dtype=np.float32)
+        )
+        object_pixels = DummyClassifier().classify(
+            np.full((10, 10, 3), "not pixels", dtype=object)
+        )
 
         self.assertEqual(malformed.status, ClassificationStatus.MALFORMED_IMAGE)
         self.assertEqual(missing.status, ClassificationStatus.MALFORMED_IMAGE)
+        self.assertEqual(nan_pixels.status, ClassificationStatus.MALFORMED_IMAGE)
+        self.assertEqual(object_pixels.status, ClassificationStatus.MALFORMED_IMAGE)
         self.assertTrue(malformed.error)
         self.assertEqual(malformed.classifier_version, STUB_CLASSIFIER_VERSION)
+
+    def test_result_schema_rejects_contradictory_or_empty_fields(self):
+        accepted_fields = {
+            "status": ClassificationStatus.ACCEPTED,
+            "species_id": "test:species",
+            "common_name": "Test Plant",
+            "scientific_name": "Testus plantus",
+            "family": "Test family",
+            "category": "Test category",
+            "conservation_status": "Not assessed",
+            "confidence": 0.8,
+            "short_notes": "Test result.",
+            "sources": ("test://source",),
+            "classifier_version": "test-1",
+        }
+
+        with self.assertRaisesRegex(ValueError, "non-empty strings"):
+            ClassificationResult(**{**accepted_fields, "sources": ("",)})
+        with self.assertRaisesRegex(ValueError, "must not contain a species identity"):
+            ClassificationResult(
+                status=ClassificationStatus.ERROR,
+                species_id="test:should-not-exist",
+                classifier_version="test-1",
+                error="fixture error",
+            )
+        with self.assertRaisesRegex(ValueError, "must not carry a demo label"):
+            ClassificationResult(
+                **{**accepted_fields, "demo_label": "DEMO DATA"}
+            )
 
     def test_pipeline_converts_unexpected_classifier_exception_to_error_result(self):
         class BrokenClassifier:
@@ -146,6 +194,39 @@ class ClassificationTests(unittest.TestCase):
         self.assertIn("fixture failure", run.result.error)
         self.assertTrue(run.result.is_stub)
         self.assertEqual(run.result.demo_label, "DEMO DATA")
+
+    def test_pipeline_fails_closed_when_stub_result_hides_demo_provenance(self):
+        class MislabelledStub:
+            classifier_version = STUB_CLASSIFIER_VERSION
+            is_stub = True
+
+            def classify(self, crop, *, cancellation=None):
+                return ClassificationResult(
+                    status=ClassificationStatus.ACCEPTED,
+                    species_id="demo:hidden",
+                    common_name="Hidden Demo",
+                    scientific_name="Fakus plantus",
+                    family="Fake family",
+                    category="Fake category",
+                    conservation_status="Fake status",
+                    confidence=0.9,
+                    short_notes="Mislabelled fixture.",
+                    sources=("test://mislabelled",),
+                    classifier_version=self.classifier_version,
+                    is_stub=False,
+                )
+
+        run = ClassificationPipeline(MislabelledStub()).classify_capture(
+            capture(None), image=valid_image()
+        )
+        diagnostic = format_diagnostic(run)
+
+        self.assertEqual(run.status, ClassificationStatus.ERROR)
+        self.assertTrue(run.result.is_stub)
+        self.assertEqual(run.result.demo_label, "DEMO DATA")
+        self.assertIn("provenance do not match", run.result.error)
+        self.assertIn("DEMO DATA", diagnostic)
+        self.assertNotIn("PRODUCTION MODEL", diagnostic)
 
 
 if __name__ == "__main__":

@@ -104,6 +104,9 @@ with the deterministic classifier stub:
 An accepted crop is passed directly to `ClassificationPipeline`, which prints
 the crop path, hash association, timing, fake species details, and the visible
 `DEMO DATA` warning. The stub never represents a real plant identification.
+Classifier/result provenance mismatches become visibly labelled errors, and the
+runner retains only a classification count rather than unbounded result
+history.
 Exercise the deterministic terminal paths with:
 
 ```sh
@@ -114,3 +117,29 @@ Exercise the deterministic terminal paths with:
 
 Malformed image handling is covered by the unit contract tests; the live loop
 only sends successfully written crop files to the classifier.
+
+## Phase 5 modular monolith service
+
+Run the FastAPI service (scan pipeline, demo library, observability, and the
+built kiosk frontend) on loopback:
+
+```sh
+.venv/bin/python tools/run_api.py
+.venv/bin/python tools/run_api.py --port 8123
+```
+
+The service binds to `127.0.0.1` by default and serves the built frontend from
+`frontend/dist` at `/`. Build it first with `npm run build` inside `frontend/`.
+Endpoints live under `/api/v1` (health, capabilities, scan state/events/preview,
+scan commands, local-image fallback, demo library, diagnostics logs).
+
+After `npm run build` in `frontend/`, run the automated kiosk-state and exact
+layout verification with:
+
+```sh
+.venv/bin/python tools/verify_phase5_ui.py
+```
+
+It uses the installed Chromium binary, mocks only the local API boundary, checks
+detecting/locking/processing/result/uncertain/error/cancellation/fallback states,
+and refreshes `docs/evidence/phase5/` at exactly 800×480.

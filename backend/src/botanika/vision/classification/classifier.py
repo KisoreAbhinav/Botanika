@@ -71,9 +71,18 @@ class SpeciesSuggestion:
     confidence: float
 
     def __post_init__(self) -> None:
-        if not self.common_name.strip() or not self.scientific_name.strip():
+        if (
+            not isinstance(self.common_name, str)
+            or not self.common_name.strip()
+            or not isinstance(self.scientific_name, str)
+            or not self.scientific_name.strip()
+        ):
             raise ValueError("species suggestions require names")
-        if not 0.0 <= self.confidence <= 1.0:
+        if (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not 0.0 <= self.confidence <= 1.0
+        ):
             raise ValueError("suggestion confidence must be between 0 and 1")
 
     def to_dict(self) -> dict[str, object]:
@@ -107,14 +116,42 @@ class ClassificationResult:
     def __post_init__(self) -> None:
         if not isinstance(self.status, ClassificationStatus):
             object.__setattr__(self, "status", ClassificationStatus(self.status))
-        if not self.classifier_version.strip():
+        if (
+            not isinstance(self.classifier_version, str)
+            or not self.classifier_version.strip()
+        ):
             raise ValueError("classifier_version must not be empty")
         if not isinstance(self.is_stub, bool):
             raise ValueError("is_stub must be a boolean")
+        if not isinstance(self.demo_label, str):
+            raise ValueError("demo_label must be a string")
         if self.is_stub and self.demo_label != DEMO_DATA_LABEL:
             raise ValueError("stub responses must be labelled DEMO DATA")
-        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
+        if not self.is_stub and self.demo_label:
+            raise ValueError("non-stub responses must not carry a demo label")
+        if self.confidence is not None and (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not 0.0 <= self.confidence <= 1.0
+        ):
             raise ValueError("confidence must be between 0 and 1")
+        if self.short_notes is not None and (
+            not isinstance(self.short_notes, str) or not self.short_notes.strip()
+        ):
+            raise ValueError("short_notes must be non-empty when provided")
+        if not isinstance(self.sources, tuple) or any(
+            not isinstance(source, str) or not source.strip() for source in self.sources
+        ):
+            raise ValueError("sources must contain non-empty strings")
+        if not isinstance(self.suggestions, tuple) or any(
+            not isinstance(suggestion, SpeciesSuggestion)
+            for suggestion in self.suggestions
+        ):
+            raise ValueError("suggestions must contain SpeciesSuggestion values")
+        if self.error is not None and (
+            not isinstance(self.error, str) or not self.error.strip()
+        ):
+            raise ValueError("error must be non-empty when provided")
 
         if self.status is ClassificationStatus.ACCEPTED:
             required = (
@@ -126,12 +163,16 @@ class ClassificationResult:
                 self.conservation_status,
                 self.short_notes,
             )
-            if any(value is None or not str(value).strip() for value in required):
+            if any(
+                not isinstance(value, str) or not value.strip() for value in required
+            ):
                 raise ValueError("accepted results require complete species details")
             if self.confidence is None or not self.sources:
                 raise ValueError("accepted results require confidence and sources")
             if self.error is not None:
                 raise ValueError("accepted results cannot contain an error")
+            if self.suggestions:
+                raise ValueError("accepted results cannot contain suggestions")
         elif self.status is ClassificationStatus.UNCERTAIN:
             if self.confidence is None:
                 raise ValueError("uncertain results require confidence")
@@ -147,8 +188,22 @@ class ClassificationResult:
                 )
             ):
                 raise ValueError("uncertain results must not force a species identity")
+            if self.error is not None:
+                raise ValueError("uncertain results cannot contain an error")
         else:
-            if not self.error or not self.error.strip():
+            identity_fields = (
+                self.species_id,
+                self.common_name,
+                self.scientific_name,
+                self.family,
+                self.category,
+                self.conservation_status,
+            )
+            if any(value is not None for value in identity_fields):
+                raise ValueError("failed results must not contain a species identity")
+            if self.confidence is not None or self.suggestions:
+                raise ValueError("failed results must not contain predictions")
+            if self.error is None:
                 raise ValueError("failed results require an error message")
 
     @property
@@ -265,9 +320,15 @@ class DummyClassifier:
             )
 
         if self.scenario is DummyScenario.UNCERTAIN or self.confidence < self.acceptance_threshold:
+            uncertain_confidence = self.confidence
+            if (
+                self.scenario is DummyScenario.UNCERTAIN
+                and uncertain_confidence >= self.acceptance_threshold
+            ):
+                uncertain_confidence = max(0.0, self.acceptance_threshold - 0.01)
             return ClassificationResult(
                 status=ClassificationStatus.UNCERTAIN,
-                confidence=min(self.confidence, 0.49),
+                confidence=uncertain_confidence,
                 short_notes="Demo suggestion only; request another view before accepting.",
                 sources=("DEMO DATA: phase-4 fixture",),
                 classifier_version=self.classifier_version,
@@ -277,7 +338,7 @@ class DummyClassifier:
                     SpeciesSuggestion(
                         common_name="Demo Plant",
                         scientific_name="Specimenus demonstratus",
-                        confidence=min(self.confidence, 0.49),
+                        confidence=uncertain_confidence,
                     ),
                 ),
             )
@@ -335,4 +396,8 @@ def _load_crop(crop: ClassifierInput) -> np.ndarray:
         raise MalformedImageError(
             f"expected a non-empty 3-channel BGR crop, got {getattr(image, 'shape', None)!r}"
         )
-    return image
+    if image.dtype != np.uint8:
+        raise MalformedImageError(
+            f"expected an 8-bit BGR crop, got dtype {image.dtype}"
+        )
+    return np.ascontiguousarray(image)

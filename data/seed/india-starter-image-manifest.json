@@ -1,0 +1,13 @@
+{
+  "manifest_id": "botanika-india-starter-images",
+  "version": "2026.09.1",
+  "status": "reference-manifest",
+  "region": "India — starter garden and field-edge catalog",
+  "notes": "The runtime ships no remote image dependency. Before a field release, replace reference entries with exact downloaded asset URLs, file hashes, per-file licenses, observation IDs, and location-grouped train/validation/test splits.",
+  "split_policy": {
+    "group_key": "observation_id",
+    "location_grouping": true,
+    "leakage_check": "same observation and location group may occur in one split only"
+  },
+  "observations": []
+}

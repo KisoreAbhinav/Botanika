@@ -82,6 +82,7 @@ class ClassificationPipeline:
             result = self.classifier.classify(crop, cancellation=cancellation)
             if not isinstance(result, ClassificationResult):
                 raise TypeError("classifier returned an invalid result object")
+            _validate_result_provenance(self.classifier, result)
         except Exception as exc:
             result = _classifier_error(self.classifier, str(exc))
         completed_at = self._clock()
@@ -124,8 +125,22 @@ def format_diagnostic(run: ClassificationRun) -> str:
 
 
 def _classifier_error(classifier: SpeciesClassifier, message: str) -> ClassificationResult:
-    is_stub = bool(getattr(classifier, "is_stub", False))
-    version = str(getattr(classifier, "classifier_version", "unknown"))
+    try:
+        declared_stub = getattr(classifier, "is_stub", None)
+    except Exception:
+        declared_stub = None
+    try:
+        declared_version = getattr(classifier, "classifier_version", "unknown")
+    except Exception:
+        declared_version = "unknown"
+    # Only an explicit, valid ``False`` declaration may use production wording.
+    # Missing or malformed provenance remains visibly demo-labelled.
+    is_stub = declared_stub is not False
+    version = (
+        declared_version
+        if isinstance(declared_version, str) and declared_version.strip()
+        else "unknown"
+    )
     return ClassificationResult(
         status=ClassificationStatus.ERROR,
         short_notes="No species identity was produced.",
@@ -135,3 +150,20 @@ def _classifier_error(classifier: SpeciesClassifier, message: str) -> Classifica
         demo_label=DEMO_DATA_LABEL if is_stub else "",
         error=f"Classifier invocation failed: {message}",
     )
+
+
+def _validate_result_provenance(
+    classifier: SpeciesClassifier, result: ClassificationResult
+) -> None:
+    """Fail closed when classifier and result provenance do not agree."""
+
+    declared_stub = getattr(classifier, "is_stub", None)
+    declared_version = getattr(classifier, "classifier_version", None)
+    if not isinstance(declared_stub, bool):
+        raise TypeError("classifier is_stub declaration must be a boolean")
+    if not isinstance(declared_version, str) or not declared_version.strip():
+        raise TypeError("classifier_version declaration must be a non-empty string")
+    if result.is_stub is not declared_stub:
+        raise ValueError("classifier and result stub provenance do not match")
+    if result.classifier_version != declared_version:
+        raise ValueError("classifier and result versions do not match")

@@ -48,8 +48,10 @@ Phase 4 adds the reusable species-classification boundary under
 `ClassificationPipeline` passes each successful crop path directly to the
 classifier and associates the result with the crop hash and timing. The only
 available implementation is `DummyClassifier`, version `stub-phase-4`; every
-response is marked `is_stub: true` and `DEMO DATA`. Run the complete diagnostic
-loop with:
+response is marked `is_stub: true` and `DEMO DATA`. The pipeline fails closed
+if classifier/result provenance disagrees, and in-memory crops must be
+non-empty three-channel `uint8` BGR arrays. Run the complete diagnostic loop
+with:
 
 ```sh
 .venv/bin/python tools/run_phase4.py --headless --max-frames 60
@@ -58,3 +60,28 @@ loop with:
 Use `--demo-case uncertain`, `--demo-case error`, or `--demo-case cancelled` to
 exercise deterministic non-success responses. This phase does not download,
 train, or validate a species model.
+
+Phase 6 adds the normal runtime under [`src/botanika/knowledge/`](src/botanika/knowledge/),
+[`src/botanika/storage/database.py`](src/botanika/storage/database.py), and
+[`src/botanika/storage/discoveries.py`](src/botanika/storage/discoveries.py).
+The India starter catalog contains seven stable species IDs with aliases,
+native/category metadata, conservation records, ecology notes, source/license
+provenance, and a model-release label map. `CompactSpeciesClassifier` loads the
+checksum-verified OpenCV/NumPy feature artifact, joins labels to the catalog,
+and abstains on out-of-range, ambiguous, or unvalidated views. Accepted results
+remain gated until held-out/per-class metrics, unknown-rejection trials, and Pi
+latency/memory/thermal evidence are recorded. Normal
+`AppSettings` uses this non-stub path; the old demo repository is reachable only
+through an explicit Phase 5 compatibility configuration.
+
+Run the local service from the repository root with:
+
+```sh
+.venv/bin/python tools/run_api.py
+```
+
+The service seeds `data/database/botanika.sqlite` on first start. The real
+library writes only accepted crops and generated thumbnails beneath
+`data/media/discoveries/real/`; export and failure-atomic restore archives
+include the SQLite snapshot and verified image linkage. Position is optional and currently
+reported as unavailable by the kiosk, so saving never waits for coordinates.

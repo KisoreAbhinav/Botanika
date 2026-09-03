@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
             acceptance_threshold=args.acceptance_threshold,
         )
         pipeline = ClassificationPipeline(classifier)
-        runs = []
+        classification_count = 0
 
         print(
             "Botanika Phase 4 pipeline ready: DEMO DATA only; "
@@ -73,8 +73,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         def classify_capture(capture):
+            nonlocal classification_count
             run = pipeline.classify_capture(capture)
-            runs.append(run)
+            classification_count += 1
             print(format_diagnostic(run), flush=True)
 
         stats = run_lock_on.run_lock_on(
@@ -108,9 +109,9 @@ def main(argv: list[str] | None = None) -> int:
     print(
         "Botanika Phase 4 stopped cleanly: "
         f"{stats.rendered_frames} frames, {stats.last_fps:.1f} FPS, "
-        f"{stats.captures} crops saved, {len(runs)} DEMO DATA classifications"
+        f"{stats.captures} crops saved, {classification_count} DEMO DATA classifications"
     )
-    if not runs:
+    if classification_count == 0:
         print("No accepted crop was produced; hold an eligible target steady to see the demo result.")
     return 0
 

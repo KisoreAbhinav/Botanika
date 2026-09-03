@@ -30,7 +30,7 @@ No model was downloaded, trained, or presented as validated.
 
 ```text
 .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -q
-Ran 37 tests ... OK
+Ran 40 tests ... OK
 
 .venv/bin/python -m py_compile \
   backend/src/botanika/vision/classification/*.py \
@@ -55,3 +55,29 @@ hold an eligible object steady on the Pi, verify one crop enters the stub, and
 inspect the displayed result. Until Phase 6 replaces the stub, the result must
 remain labelled `DEMO DATA` and must not be saved or described as a real species
 identification.
+
+## Post-audit hardening — 2026-09-02
+
+- The pipeline now compares the classifier's declared `is_stub` and version
+  against every returned result. A mismatch fails closed as a visibly labelled
+  classifier error; missing or malformed provenance also defaults to demo
+  labelling, so demo output cannot be promoted to `PRODUCTION MODEL`.
+- In-memory crop inputs must be non-empty three-channel `uint8` BGR arrays.
+  Float/NaN, object, and other unsupported dtypes return `malformed_image`.
+- Result validation rejects empty sources, production results carrying demo
+  labels, failed results carrying identities/predictions, accepted results with
+  suggestions, and uncertain results carrying errors.
+- Threshold-driven low-confidence results preserve their configured confidence
+  instead of silently clamping it to 0.49, and the actual threshold path has a
+  regression test. The explicitly forced uncertain scenario reports a value
+  just below its configured acceptance threshold.
+- The diagnostic runner retains a count rather than an unbounded list of every
+  classification.
+
+The complete automated suite passes 40 tests after these corrections. The
+operator-owned physical exit trial remains deferred and unchanged.
+
+A post-hardening headless/no-capture Pi smoke run processed 10 frames at 4.2
+FPS, wrote zero crops, invoked zero classifications, and stopped/closed the
+camera cleanly. This verifies runner startup and resource cleanup without
+claiming the deferred physical crop-to-result gate.

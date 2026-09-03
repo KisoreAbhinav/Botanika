@@ -117,15 +117,30 @@ class LockOnEngine:
     def last_capture(self) -> CaptureResult | None:
         return self._last_capture
 
-    def update(self, frame: np.ndarray, detections: Iterable[Detection]) -> LockOnUpdate:
-        """Advance one frame and capture automatically after a quality lock."""
+    def update(
+        self,
+        frame: np.ndarray,
+        detections: Iterable[Detection],
+        *,
+        preferred: Detection | None = None,
+    ) -> LockOnUpdate:
+        """Advance one frame and capture automatically after a quality lock.
+
+        ``preferred`` optionally overrides automatic candidate selection so the
+        operator can pin a different detected box.  Passing ``None`` preserves
+        the Phase 3 largest-central selection behavior exactly.
+        """
 
         frame_height, frame_width = frame.shape[:2]
-        candidate = select_candidate(
-            detections,
-            frame_width,
-            frame_height,
-            self.config.eligible_labels,
+        candidate = (
+            preferred
+            if preferred is not None
+            else select_candidate(
+                detections,
+                frame_width,
+                frame_height,
+                self.config.eligible_labels,
+            )
         )
         candidate_appearance = (
             _appearance_signature(frame, candidate.box) if candidate is not None else None
@@ -246,19 +261,26 @@ class LockOnEngine:
         self._quality = None
         return self._result("Checking sharpness")
 
-    def manual_capture(self, frame: np.ndarray) -> LockOnUpdate:
-        """Capture the current candidate for debugging, even before auto-lock."""
+    def manual_capture(self, frame: np.ndarray, *, preferred: Detection | None = None) -> LockOnUpdate:
+        """Capture the current (or pinned) candidate for debugging or fallback."""
 
-        if self._current is None:
+        candidate = preferred if preferred is not None else self._current
+        if candidate is None or not _eligible(candidate, self.config.eligible_labels):
             return self._result("No eligible target to capture")
+        self._current = candidate
         self.state = LockOnState.CAPTURING
-        capture = self.crop_store.save(frame, self._current.box, manual=True)
+        capture = self.crop_store.save(frame, candidate.box, manual=True)
         self._last_capture = capture
         self._captured_target = self._current
         self._captured_appearance = self._appearance
         self._rearm_missing_frames = 0
         self.state = LockOnState.CAPTURED
         return self._result("Manual crop captured", capture=capture)
+
+    def reset(self, *, clear_capture_guard: bool = True) -> None:
+        """Return to SEARCHING for a Retake; used by the kiosk action bar."""
+
+        self._reset_tracking(clear_capture_guard=clear_capture_guard)
 
     def _capture(self, frame: np.ndarray, candidate: Detection) -> LockOnUpdate:
         capture = self.crop_store.save(frame, candidate.box)
@@ -382,3 +404,7 @@ def _iou(left: BoundingBox, right: BoundingBox) -> float:
     ).area
     union = left.area + right.area - intersection
     return intersection / union if union > 0 else 0.0
+
+
+def _eligible(detection: Detection, eligible_labels: frozenset[str]) -> bool:
+    return detection.label in eligible_labels

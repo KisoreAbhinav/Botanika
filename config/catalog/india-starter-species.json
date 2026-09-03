@@ -1,0 +1,323 @@
+{
+  "catalog_id": "botanika-india-starter",
+  "version": "2026.09.2",
+  "region": "India — starter garden and field-edge catalog",
+  "sources": [
+    {
+      "source_id": "kew-ficus-benghalensis-profile",
+      "title": "Ficus benghalensis — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:852482-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "species-profile"
+    },
+    {
+      "source_id": "kew-ficus-religiosa-backbone",
+      "title": "Ficus religiosa — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:853563-1/general-information",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "kew-artocarpus-heterophyllus-backbone",
+      "title": "Artocarpus heterophyllus — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "taxonomy-and-distribution"
+    },
+    {
+      "source_id": "kew-artocarpus-heterophyllus-ftea",
+      "title": "Artocarpus heterophyllus — Flora of Tropical East Africa via POWO",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Flora of Tropical East Africa)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "flora-description"
+    },
+    {
+      "source_id": "kew-ocimum-tenuiflorum-profile",
+      "title": "Ocimum tenuiflorum — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:453130-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "species-profile"
+    },
+    {
+      "source_id": "kew-moringa-oleifera-backbone",
+      "title": "Moringa oleifera — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:584736-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "iucn-moringa-oleifera",
+      "title": "Moringa oleifera assessment — IUCN Red List",
+      "publisher": "International Union for Conservation of Nature",
+      "url": "https://www.iucnredlist.org/species/61890232/61890241",
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "retrieved_at": "2026-09-02",
+      "source_type": "conservation-assessment"
+    },
+    {
+      "source_id": "kew-jasminum-sambac-backbone",
+      "title": "Jasminum sambac — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:609755-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "kew-syzygium-microphyllum-backbone",
+      "title": "Syzygium microphyllum — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:601940-1/general-information",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "retrieved_at": "2026-09-02",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "iucn-syzygium-microphyllum",
+      "title": "Syzygium microphyllum assessment — IUCN Red List",
+      "publisher": "International Union for Conservation of Nature",
+      "url": "https://www.iucnredlist.org/species/37626/10067599",
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "retrieved_at": "2026-09-02",
+      "source_type": "conservation-assessment"
+    },
+    {
+      "source_id": "wikimedia-commons",
+      "title": "Wikimedia Commons image references",
+      "publisher": "Wikimedia Foundation contributors",
+      "url": "https://commons.wikimedia.org/",
+      "license": "Per-file CC BY-SA, CC BY, or public-domain terms; verify before ingesting an asset",
+      "license_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+      "retrieved_at": "2026-09-02",
+      "source_type": "image-reference"
+    }
+  ],
+  "species": [
+    {
+      "species_id": "in:ficus-benghalensis",
+      "scientific_name": "Ficus benghalensis",
+      "common_name": "Banyan",
+      "family": "Moraceae",
+      "region": "India",
+      "category": "Indian native",
+      "native_status": "Native to the Indian subcontinent; frequently cultivated in tropical streets and parks.",
+      "is_native": true,
+      "conservation_status": "Not threatened (Kew species profile)",
+      "ecology": "Tree of tropical forest and seasonally dry tropical habitats; it is also frequently cultivated elsewhere in the tropics.",
+      "short_notes": "A large strangling fig with leathery leaves and aerial roots that can develop into additional trunks.",
+      "aliases": ["Indian banyan", "Bargad"],
+      "image_views": ["whole plant", "leaf", "bark", "fruit"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-ficus-benghalensis-profile"],
+      "assessments": [],
+      "knowledge": [
+        {"source_id": "kew-ficus-benghalensis-profile", "kind": "description", "text": "Banyan is a large strangling fig native to the Indian subcontinent. Aerial roots hang from its branches and can develop into additional trunks, while its leathery leaves have prominent lateral veins."},
+        {"source_id": "kew-ficus-benghalensis-profile", "kind": "ecology", "text": "Banyan occurs in tropical forest and is frequently cultivated elsewhere in the tropics; Kew's species profile describes it as not threatened."}
+      ]
+    },
+    {
+      "species_id": "in:ficus-religiosa",
+      "scientific_name": "Ficus religiosa",
+      "common_name": "Sacred fig",
+      "family": "Moraceae",
+      "region": "India",
+      "category": "Indian native",
+      "native_status": "Native range includes India from southeast Pakistan to Myanmar.",
+      "is_native": true,
+      "conservation_status": "Not assessed in this starter record",
+      "ecology": "Tree of the seasonally dry tropical biome with environmental and social uses.",
+      "short_notes": "Also called peepal; the heart-shaped leaf and long tapering tip are useful field characters, but a single leaf view may be insufficient.",
+      "aliases": ["Peepal", "Pipal", "Bodhi tree"],
+      "image_views": ["whole plant", "leaf", "bark", "fruit"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-ficus-religiosa-backbone"],
+      "assessments": [],
+      "knowledge": [
+        {"source_id": "kew-ficus-religiosa-backbone", "kind": "distribution", "text": "The native range of sacred fig extends from southeast Pakistan to Myanmar and includes India, Nepal, and Bangladesh."},
+        {"source_id": "kew-ficus-religiosa-backbone", "kind": "ecology", "text": "Sacred fig is a tree of the seasonally dry tropical biome and is recorded by Kew with environmental and social uses."}
+      ]
+    },
+    {
+      "species_id": "in:artocarpus-heterophyllus",
+      "scientific_name": "Artocarpus heterophyllus",
+      "common_name": "Jackfruit",
+      "family": "Moraceae",
+      "region": "India",
+      "category": "Western Ghats native",
+      "native_status": "Native range is southwestern India; widely cultivated in tropical regions.",
+      "is_native": true,
+      "conservation_status": "Not assessed in this starter record",
+      "ecology": "Tree of the wet tropical biome with flowers and fruit borne on the main branches and trunk.",
+      "short_notes": "A crop and food tree from southwestern India. Fruit, bark, leaves, and whole-plant views can differ substantially.",
+      "aliases": ["Jack tree", "Kathal"],
+      "image_views": ["whole plant", "leaf", "bark", "fruit"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-artocarpus-heterophyllus-backbone", "kew-artocarpus-heterophyllus-ftea"],
+      "assessments": [],
+      "knowledge": [
+        {"source_id": "kew-artocarpus-heterophyllus-backbone", "kind": "distribution", "text": "Jackfruit has a native range in southwestern India and is now widely cultivated in tropical regions."},
+        {"source_id": "kew-artocarpus-heterophyllus-ftea", "kind": "description", "text": "Jackfruit is a tree; Kew records its inflorescences on the main branches and trunk and records the species as having food and environmental uses."}
+      ]
+    },
+    {
+      "species_id": "in:ocimum-tenuiflorum",
+      "scientific_name": "Ocimum tenuiflorum",
+      "common_name": "Holy basil",
+      "family": "Lamiaceae",
+      "region": "India",
+      "category": "Indian native",
+      "native_status": "Native range includes India and tropical and subtropical Asia; commonly grown in South Asian homes.",
+      "is_native": true,
+      "conservation_status": "Least concern (Kew species profile)",
+      "ecology": "Perennial or subshrub of the seasonally dry tropical biome; often cultivated.",
+      "short_notes": "Also called tulsi. Its aromatic foliage and small flowers are useful context, but cultivated forms can vary in colour.",
+      "aliases": ["Tulsi", "Tulasi", "Sacred basil"],
+      "image_views": ["whole plant", "leaf", "flower"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-ocimum-tenuiflorum-profile"],
+      "assessments": [],
+      "knowledge": [
+        {"source_id": "kew-ocimum-tenuiflorum-profile", "kind": "description", "text": "Holy basil is an aromatic perennial or subshrub with elliptic leaves and small brown nutlets; it is closely related to culinary basil."},
+        {"source_id": "kew-ocimum-tenuiflorum-profile", "kind": "ecology", "text": "Holy basil is native to tropical and subtropical Asia, is cultivated in other tropical areas, and is described by Kew as widespread and least concern."}
+      ]
+    },
+    {
+      "species_id": "in:moringa-oleifera",
+      "scientific_name": "Moringa oleifera",
+      "common_name": "Drumstick tree",
+      "family": "Moringaceae",
+      "region": "India",
+      "category": "Indian native",
+      "native_status": "Native to northern India and Pakistan; now widely cultivated in the tropics.",
+      "is_native": true,
+      "conservation_status": "Least concern (IUCN Red List assessment recorded by Kew)",
+      "ecology": "Small tree of the seasonally dry tropical biome, also grown widely in cultivated and artificial habitats.",
+      "short_notes": "Also called moringa. Feathery leaves, pale flowers, and long ribbed pods are distinctive views to collect when available.",
+      "aliases": ["Moringa", "Sahjan"],
+      "image_views": ["whole plant", "leaf", "flower", "fruit"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-moringa-oleifera-backbone", "iucn-moringa-oleifera"],
+      "assessments": [
+        {"authority": "IUCN Red List", "status": "LC — Least Concern", "assessment_url": "https://www.iucnredlist.org/species/61890232/61890241", "assessed_at": "2021"}
+      ],
+      "knowledge": [
+        {"source_id": "kew-moringa-oleifera-backbone", "kind": "distribution", "text": "Moringa is native to northern India and Pakistan and is now widely cultivated throughout the tropics."},
+        {"source_id": "iucn-moringa-oleifera", "kind": "conservation", "text": "The starter catalog records Moringa oleifera as LC — Least Concern using the IUCN Red List assessment linked in this record."}
+      ]
+    },
+    {
+      "species_id": "in:jasminum-sambac",
+      "scientific_name": "Jasminum sambac",
+      "common_name": "Arabian jasmine",
+      "family": "Oleaceae",
+      "region": "India",
+      "category": "Indian native",
+      "native_status": "Native range extends from Bhutan to India; cultivated widely for its fragrant flowers.",
+      "is_native": true,
+      "conservation_status": "Not assessed in this starter record",
+      "ecology": "Scrambling shrub of the seasonally dry tropical biome; also recorded in cultivated and artificial habitats.",
+      "short_notes": "A fragrant jasmine with white flowers. Flower and leaf views are more informative than a distant garden scene.",
+      "aliases": ["Mogra", "Mallika"],
+      "image_views": ["whole plant", "leaf", "flower"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-jasminum-sambac-backbone"],
+      "assessments": [],
+      "knowledge": [
+        {"source_id": "kew-jasminum-sambac-backbone", "kind": "distribution", "text": "Arabian jasmine has a native range from Bhutan to India and is introduced or cultivated in many tropical regions."},
+        {"source_id": "kew-jasminum-sambac-backbone", "kind": "ecology", "text": "Arabian jasmine is a scrambling shrub that grows primarily in the seasonally dry tropical biome."}
+      ]
+    },
+    {
+      "species_id": "in:syzygium-microphyllum",
+      "scientific_name": "Syzygium microphyllum",
+      "common_name": "Small-leaved Syzygium",
+      "family": "Myrtaceae",
+      "region": "India — Western Ghats",
+      "category": "Western Ghats native",
+      "native_status": "Native to Kerala and Tamil Nadu in India.",
+      "is_native": true,
+      "conservation_status": "Endangered (IUCN Red List)",
+      "ecology": "Tree native to the seasonally dry tropical biome in the southern Western Ghats range recorded by Kew.",
+      "short_notes": "A region-specific catalog entry included to make conservation context visible; do not treat a low-confidence image match as a confirmed record.",
+      "aliases": [],
+      "image_views": ["whole plant", "leaf", "bark", "fruit"],
+      "image_source_ids": ["wikimedia-commons"],
+      "source_ids": ["kew-syzygium-microphyllum-backbone", "iucn-syzygium-microphyllum"],
+      "assessments": [
+        {"authority": "IUCN Red List", "status": "EN — Endangered", "assessment_url": "https://www.iucnredlist.org/species/37626/10067599", "assessed_at": "current record"}
+      ],
+      "knowledge": [
+        {"source_id": "kew-syzygium-microphyllum-backbone", "kind": "distribution", "text": "Syzygium microphyllum has a native range in India, specifically Kerala and Tamil Nadu."},
+        {"source_id": "iucn-syzygium-microphyllum", "kind": "conservation", "text": "The starter catalog records Syzygium microphyllum as EN — Endangered using the linked IUCN Red List assessment."}
+      ]
+    }
+  ],
+  "model_release": {
+    "release_id": "botanika-model-release-india-starter-1",
+    "model_id": "botanika.india.catalog-feature-nearest-centroid",
+    "version": "india-starter-feature-1.0.0",
+    "artifact_path": "models/plant_classifier/india-starter-feature-v1.json",
+    "artifact_sha256": "8d7838d1877e6161168bbb43a91159dc33b10638428fbc668f73cd85ac6874bf",
+    "runtime": "opencv-numpy",
+    "label_map": {
+      "0": "in:ficus-benghalensis",
+      "1": "in:ficus-religiosa",
+      "2": "in:artocarpus-heterophyllus",
+      "3": "in:ocimum-tenuiflorum",
+      "4": "in:moringa-oleifera",
+      "5": "in:jasminum-sambac",
+      "6": "in:syzygium-microphyllum"
+    },
+    "preprocessing": {
+      "input_width": 96,
+      "input_height": 96,
+      "channels": "BGR",
+      "normalization": "uint8-to-0-1",
+      "feature_schema": "hsv-luma-texture-v1"
+    },
+    "metrics": {
+      "status": "starter artifact; held-out field metrics must be recorded on curated observations before deployment",
+      "macro_f1": null,
+      "per_class": {},
+      "held_out_observations": 0,
+      "unknown_rejection_rate": null,
+      "pi_benchmark": null
+    },
+    "calibration": {
+      "method": "distance-softmax with fixed abstention gate",
+      "acceptance_threshold": 0.62,
+      "minimum_margin": 0.08,
+      "unknown_distance": 0.42
+    },
+    "dataset_provenance": {
+      "region": "India — starter garden and field-edge catalog",
+      "image_manifest": "data/seed/india-starter-image-manifest.json",
+      "training_observation_split": "grouped by observation and location; no runtime image download",
+      "status": "metadata seed is included; field image curation and held-out metrics remain an explicit operator gate"
+    },
+    "supported_region": "India — starter garden and field-edge catalog",
+    "active": true
+  }
+}

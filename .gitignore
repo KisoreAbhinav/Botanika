@@ -26,6 +26,8 @@ coverage/
 # Runtime state and user-generated media
 data/database/*.db
 data/database/*.db-*
+data/database/*.sqlite
+data/database/*.sqlite-*
 data/media/discoveries/*
 !data/media/discoveries/.gitkeep
 data/media/temp/*

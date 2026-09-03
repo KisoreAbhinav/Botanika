@@ -1,0 +1,53 @@
+{
+  "model_id": "botanika.india.catalog-feature-nearest-centroid",
+  "version": "india-starter-feature-1.0.0",
+  "runtime": "opencv-numpy",
+  "input": {
+    "width": 96,
+    "height": 96,
+    "channels": 3,
+    "color_order": "BGR",
+    "normalization": "uint8-to-0-1"
+  },
+  "feature_schema": "hsv-luma-texture-v1",
+  "feature_names": [
+    "hue_mean", "saturation_mean", "value_mean", "hue_std", "saturation_std", "value_std",
+    "green_fraction", "yellow_fraction", "brown_fraction", "red_fraction",
+    "edge_density", "texture_score", "aspect_ratio", "center_green_fraction"
+  ],
+  "label_map": {
+    "0": "in:ficus-benghalensis",
+    "1": "in:ficus-religiosa",
+    "2": "in:artocarpus-heterophyllus",
+    "3": "in:ocimum-tenuiflorum",
+    "4": "in:moringa-oleifera",
+    "5": "in:jasminum-sambac",
+    "6": "in:syzygium-microphyllum"
+  },
+  "feature_scales": [
+    0.22, 0.25, 0.25, 0.22, 0.25, 0.25, 0.22, 0.16, 0.18, 0.16,
+    0.22, 0.25, 0.45, 0.22
+  ],
+  "centroids": [
+    [0.29, 0.47, 0.44, 0.15, 0.25, 0.20, 0.38, 0.08, 0.13, 0.03, 0.28, 0.46, 1.18, 0.40],
+    [0.30, 0.49, 0.48, 0.16, 0.26, 0.22, 0.43, 0.10, 0.09, 0.03, 0.34, 0.43, 1.08, 0.47],
+    [0.28, 0.51, 0.53, 0.15, 0.27, 0.24, 0.48, 0.12, 0.08, 0.04, 0.26, 0.38, 1.22, 0.49],
+    [0.32, 0.56, 0.57, 0.18, 0.29, 0.25, 0.56, 0.09, 0.05, 0.04, 0.44, 0.55, 0.92, 0.58],
+    [0.26, 0.45, 0.59, 0.18, 0.26, 0.24, 0.50, 0.16, 0.06, 0.03, 0.25, 0.35, 1.32, 0.53],
+    [0.31, 0.48, 0.55, 0.17, 0.28, 0.24, 0.46, 0.11, 0.07, 0.05, 0.38, 0.42, 0.86, 0.50],
+    [0.27, 0.42, 0.39, 0.20, 0.29, 0.23, 0.34, 0.07, 0.20, 0.04, 0.31, 0.49, 1.15, 0.35]
+  ],
+  "calibration": {
+    "temperature": 0.18,
+    "acceptance_threshold": 0.62,
+    "minimum_margin": 0.08,
+    "unknown_distance": 0.42,
+    "suggestion_limit": 3
+  },
+  "provenance": {
+    "catalog": "config/catalog/india-starter-species.json",
+    "image_manifest": "data/seed/india-starter-image-manifest.json",
+    "license": "Botanika engineered feature baseline; no third-party weights",
+    "limitations": "This compact baseline is not a substitute for a validated field-trained neural model. It rejects out-of-catalog views and exposes its unmeasured metrics rather than claiming field reliability."
+  }
+}
