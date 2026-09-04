@@ -11,12 +11,14 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 import json
 from pathlib import Path
 import shutil
 import threading
 from urllib.parse import urlparse
 
+from PIL import Image
 from playwright.sync_api import Browser, BrowserContext, Page, Route, sync_playwright
 
 
@@ -215,6 +217,67 @@ def assert_fixed_pi_canvas(page: Page) -> None:
     assert not undersized, undersized
 
 
+def assert_persistent_masthead(page: Page) -> None:
+    """The feature shell keeps the centred brand and both right controls."""
+    brand = page.locator(".masthead-center .masthead-brand")
+    assert brand.is_visible()
+    assert brand.inner_text() == "Botanika"
+    ask = page.locator(".masthead-side.right .btn").first
+    assert ask.is_visible()
+    diagnostics = page.locator(".masthead-side.right .icon-target")
+    assert diagnostics.is_visible()
+    center = page.locator(".masthead-center").bounding_box()
+    shell = page.locator(".shell").bounding_box()
+    assert center is not None and shell is not None
+    center_mid = center["x"] + center["width"] / 2
+    shell_mid = shell["x"] + shell["width"] / 2
+    assert abs(center_mid - shell_mid) <= 1, (center_mid, shell_mid)
+
+
+def wait_for_paint(page: Page, delay_ms: int = 200) -> None:
+    """Let async React state and two compositor frames settle before capture."""
+    page.wait_for_timeout(delay_ms)
+    page.evaluate(
+        """() => new Promise((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(resolve));
+        })"""
+    )
+
+
+def assert_persistent_masthead_pixels(page: Page) -> None:
+    """Prove the captured raster paints the brand and right-hand controls."""
+    image = Image.open(BytesIO(page.screenshot())).convert("L")
+    for selector, minimum in (
+        (".masthead-center .masthead-brand", 20),
+        (".masthead-side.right .btn", 20),
+        (".masthead-side.right .icon-target", 8),
+    ):
+        box = page.locator(selector).first.bounding_box()
+        assert box is not None
+        left = max(0, int(box["x"]) + 2)
+        top = max(0, int(box["y"]) + 2)
+        right = min(image.width, int(box["x"] + box["width"]) - 2)
+        bottom = min(image.height, int(box["y"] + box["height"]) - 2)
+        painted = sum(
+            1
+            for pixel in image.crop((left, top, right, bottom)).getdata()
+            if pixel < 150
+        )
+        assert painted >= minimum, (selector, painted, minimum)
+
+
+def assert_scaled_canvas_is_centered(page: Page) -> None:
+    """Check the InnoHack-style downscaled canvas keeps its true centre."""
+    viewport = page.evaluate("[innerWidth, innerHeight]")
+    shell = page.locator(".shell").bounding_box()
+    assert shell is not None
+    expected_scale = min(1, viewport[0] / 800, viewport[1] / 480)
+    assert abs(shell["width"] - 800 * expected_scale) <= 1
+    assert abs(shell["height"] - 480 * expected_scale) <= 1
+    assert abs(shell["x"] - (viewport[0] - shell["width"]) / 2) <= 1
+    assert abs(shell["y"] - (viewport[1] - shell["height"]) / 2) <= 1
+
+
 def assert_portrait_layout(page: Page) -> None:
     assert page.evaluate("[innerWidth, innerHeight]") == [390, 844]
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -270,6 +333,18 @@ def main(argv: list[str] | None = None) -> int:
                 page.screenshot(path=str(args.output / filename))
             finally:
                 context.close()
+
+        # At a larger development viewport the fixed canvas stays 800×480
+        # and remains centred; it must not upscale and drift from the screen
+        # centre. This mirrors InnoHack's media-query scaling contract.
+        context, page = new_context(browser, mode_status("SOLO"), {"width": 1024, "height": 768})
+        try:
+            page.goto(url, wait_until="domcontentloaded")
+            page.wait_for_selector(".home", timeout=3000)
+            page.wait_for_timeout(150)
+            assert_scaled_canvas_is_centered(page)
+        finally:
+            context.close()
 
         for tunnel_state, filename, expected_text in (
             ("starting", "tunnel-starting-800x480.png", "Setting up secure connection"),

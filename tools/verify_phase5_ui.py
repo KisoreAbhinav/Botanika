@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 from playwright.sync_api import sync_playwright
 
+from verify_phase8_ui import assert_persistent_masthead, assert_persistent_masthead_pixels, wait_for_paint
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DIST = PROJECT_ROOT / "frontend" / "dist"
@@ -179,6 +181,42 @@ def main(argv: list[str] | None = None) -> int:
         assert page.locator(".masthead").evaluate("element => element.offsetHeight") == 66
         assert page.locator(".home-card").nth(2).is_disabled()
         assert not undersized_controls(page)
+        page.keyboard.press("?")
+        page.wait_for_selector(".shortcuts-pop")
+        page.keyboard.press("1")
+        assert page.locator(".home").is_visible()
+        page.keyboard.press("Escape")
+        assert page.locator(".shortcuts-pop").count() == 0
+        page.locator(".masthead-side.right .icon-target").click()
+        page.keyboard.press("1")
+        assert page.locator(".home").is_visible()
+        page.keyboard.press("Escape")
+        assert page.locator(".diagnostics-pop").count() == 0
+        # The kiosk navigation contract follows InnoHack's physical-input
+        # pattern. Verify the actual document listener, including its guard
+        # while a text field is focused.
+        page.keyboard.press("1")
+        page.wait_for_selector(".scan")
+        assert_persistent_masthead(page)
+        page.keyboard.press("h")
+        page.wait_for_selector(".home")
+        page.keyboard.press("a")
+        page.wait_for_selector(".chat-shell")
+        assert_persistent_masthead(page)
+        page.keyboard.press("2")
+        page.wait_for_selector(".library")
+        filter_select = page.locator(".library-toolbar select").first
+        filter_select.focus()
+        page.keyboard.press("1")
+        assert page.locator(".library").is_visible()
+        # Move focus back to a non-editable surface before exercising the
+        # navigation shortcut again; the guard intentionally keeps H from
+        # stealing keystrokes while a select is active.
+        page.locator(".library-heading").click()
+        page.keyboard.press("h")
+        page.wait_for_selector(".home")
+        wait_for_paint(page)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(args.output / "home-800x480.png"))
 
         states = [
@@ -208,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
             page.goto(url, wait_until="domcontentloaded")
             page.get_by_text("Scan for Plants", exact=True).click()
             page.wait_for_timeout(200)
+            assert_persistent_masthead(page)
             assert page.locator(".side-header").inner_text() == expected_heading
             assert page.evaluate(
                 "[document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
@@ -219,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
         page.get_by_text("Scan for Plants", exact=True).click()
         page.wait_for_timeout(200)
         assert page.get_by_role("button", name="Save to Library").is_enabled()
+        wait_for_paint(page, 0)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(args.output / "scan-result-800x480.png"))
 
         current["snapshot"] = snapshot(mode="fallback", hint="Local image selected")
@@ -241,10 +282,14 @@ def main(argv: list[str] | None = None) -> int:
         page.goto(url, wait_until="domcontentloaded")
         page.get_by_text("Library", exact=True).first.click()
         page.wait_for_timeout(200)
+        assert_persistent_masthead(page)
         assert page.locator(".library-row").count() == 1
         assert page.get_by_text("2 observation(s)").is_visible()
         page.get_by_role("button", name="Details").click()
         assert page.locator(".observation").count() == 2
+        page.keyboard.press("1")
+        assert page.locator(".library-dialog").is_visible()
+        assert page.locator(".library").is_visible()
         assert page.evaluate(
             "[document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
         ) == [800, 480]

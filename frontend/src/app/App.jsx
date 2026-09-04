@@ -18,6 +18,7 @@ import { AskPage } from "../features/ask/AskPage.jsx";
 import { WeedsPage } from "../features/weeds/WeedsPage.jsx";
 import { MODES } from "../features/mode/modeState.js";
 import { PairingPage, PairedConsole, UnpairedConsole } from "../features/mode/ModeScreens.jsx";
+import { isShortcutBlocked, shortcutAction } from "./hotkeys.js";
 
 export function App() {
   const [screen, setScreen] = useState("home");
@@ -27,6 +28,7 @@ export function App() {
   const [modeStatus, setModeStatus] = useState(null);
   const [controllerToken, setControllerTokenState] = useState(() => getControllerToken());
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [scale, setScale] = useState(1);
   const [compact, setCompact] = useState(false);
   const toastSeq = useRef(0);
@@ -115,8 +117,11 @@ export function App() {
       const portrait = window.innerHeight > window.innerWidth * 1.05;
       const isCompact = portrait || window.innerWidth < 700;
       setCompact(isCompact);
+      // Match InnoHack's device contract: the kiosk is a fixed 800×480 canvas
+      // that scales down to fit, never up. Keeping the layout box fixed makes
+      // the transform origin the true viewport centre at every kiosk size.
       const fit = Math.min(window.innerWidth / 800, window.innerHeight / 480);
-      setScale(isCompact ? 1 : Math.max(0.5, fit));
+      setScale(isCompact ? 1 : Math.min(1, Math.max(0.5, fit)));
     };
     update();
     window.addEventListener("resize", update);
@@ -163,22 +168,52 @@ export function App() {
   }, [refreshMode]);
 
   // Software/keyboard fallback for development; the physical GPIO adapter
-  // calls the same /mode/toggle transition.
+  // calls the same /mode/toggle transition. Keep navigation available to the
+  // local operator and to an explicitly paired browser, while leaving the
+  // mode handoff consoles in charge of their own controls.
   useEffect(() => {
     const onKey = (event) => {
-      if (!operator) return;
-      if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
-      const key = event.key.toLowerCase();
-      if (key === "1") setScreen("scan");
-      else if (key === "2") setScreen("library");
-      else if (key === "3") setScreen("weeds");
-      else if (key === "a") setScreen("ask");
-      else if (key === "n") handleToggle();
-      else if (key === "h" || key === "escape") setScreen("home");
+      // Escape is the universal close affordance for the help and diagnostics
+      // popovers. It must work even when focus is on a button inside them.
+      if (event.key === "Escape" && (showShortcuts || showDiagnostics)) {
+        event.preventDefault();
+        setShowShortcuts(false);
+        setShowDiagnostics(false);
+        return;
+      }
+      if (isShortcutBlocked(event, {
+        overlaysOpen: showShortcuts || showDiagnostics,
+      }) || event.repeat) return;
+
+      const modeConsoleVisible = modeStatus?.mode === MODES.NETWORKED_UNPAIRED
+        || (modeStatus?.mode === MODES.NETWORKED_PAIRED && operator);
+      if (modeConsoleVisible) return;
+
+      if (event.key === "?") {
+        event.preventDefault();
+        setShowDiagnostics(false);
+        setShowShortcuts((value) => !value);
+        return;
+      }
+      if (event.key.toLowerCase() === "n" && operator && !compact) {
+        event.preventDefault();
+        void handleToggle();
+        return;
+      }
+
+      const action = shortcutAction(event.key);
+      if (!action) return;
+      if (action === "weeds" && !capabilities?.weeds?.available) {
+        event.preventDefault();
+        notify("Weed Detection is unavailable until its detector is ready.", "error");
+        return;
+      }
+      event.preventDefault();
+      setScreen(action);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleToggle, operator]);
+  }, [capabilities, compact, handleToggle, modeStatus?.mode, notify, operator, showDiagnostics, showShortcuts]);
 
   if (modeStatus?.mode === MODES.SOLO && !operator) {
     return <PairingPage status={modeStatus} onPaired={setPaired} onRefresh={refreshMode} />;
@@ -209,6 +244,7 @@ export function App() {
       networked={modeStatus?.mode === MODES.NETWORKED_PAIRED}
       showDiagnostics={showDiagnostics}
       setShowDiagnostics={setShowDiagnostics}
+      showShortcuts={showShortcuts}
       onToggleMode={handleToggle}
       notify={notify}
       toasts={toasts}
@@ -228,6 +264,7 @@ function AppShell({
   networked,
   showDiagnostics,
   setShowDiagnostics,
+  showShortcuts,
   onToggleMode,
   notify,
   toasts,
@@ -240,11 +277,11 @@ function AppShell({
       <header className="masthead">
         <div className="masthead-side">
           {screen !== "home" ? (
-            <button type="button" className="btn quiet" onClick={() => setScreen("home")}>Home</button>
+            <button type="button" className="btn quiet" onClick={() => setScreen("home")} aria-keyshortcuts="H">Home <kbd>H</kbd></button>
           ) : (
             <>
               <span className="masthead-status">{transportLabel(capabilities, modeStatus)}</span>
-              {!compact && <button type="button" className="btn quiet mode-button" onClick={onToggleMode}>Mode</button>}
+              {!compact && <button type="button" className="btn quiet mode-button" onClick={onToggleMode} aria-keyshortcuts="N">Mode <kbd>N</kbd></button>}
             </>
           )}
         </div>
@@ -257,6 +294,7 @@ function AppShell({
             type="button"
             className="btn"
             onClick={() => setScreen("ask")}
+            aria-keyshortcuts="A"
             aria-label={`Ask Botanika (${summary.knowledge ? "available" : "unavailable"})`}
           >
             <AskIcon />
@@ -307,6 +345,9 @@ function AppShell({
             onClose={() => setShowDiagnostics(false)}
           />
         )}
+        {showShortcuts && (
+          <KeyboardHelp onClose={() => setShowShortcuts(false)} />
+        )}
         <div className="toast-stack" role="status" aria-live="polite">
           {toasts.map((toast) => (
             <div key={toast.id} className={`toast ${toast.kind}`}>
@@ -317,6 +358,36 @@ function AppShell({
         </div>
       </main>
     </div>
+  );
+}
+
+function KeyboardHelp({ onClose }) {
+  return (
+    <section
+      className="shortcuts-pop"
+      role="dialog"
+      aria-modal="false"
+      aria-label="Keyboard shortcuts"
+      data-hotkeys-block="true"
+    >
+      <div className="shortcuts-heading">
+        <div>
+          <div className="eyebrow">Kiosk controls</div>
+          <h3>Keyboard shortcuts</h3>
+        </div>
+        <button type="button" className="btn quiet icon-target" onClick={onClose} aria-label="Close keyboard shortcuts">×</button>
+      </div>
+      <dl className="shortcuts-list">
+        <div><kbd>1</kbd><dt>Scan for Plants</dt></div>
+        <div><kbd>2</kbd><dt>Open Library</dt></div>
+        <div><kbd>3</kbd><dt>Weed Detection</dt></div>
+        <div><kbd>A</kbd><dt>Ask Botanika</dt></div>
+        <div><kbd>H</kbd><dt>Go Home</dt></div>
+        <div><kbd>Esc</kbd><dt>Home / close panel</dt></div>
+        <div><kbd>?</kbd><dt>Show these shortcuts</dt></div>
+      </dl>
+      <p>Shortcuts pause while you type or work in a dialog.</p>
+    </section>
   );
 }
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -13,6 +14,8 @@ import threading
 import cv2
 import numpy as np
 from playwright.sync_api import sync_playwright
+
+from verify_phase8_ui import assert_persistent_masthead, assert_persistent_masthead_pixels, wait_for_paint
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -168,8 +171,12 @@ def record(record_id: str, suffix: str) -> dict[str, object]:
     }
 
 
-def main() -> int:
-    output = DEFAULT_OUTPUT
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--chromium", default=shutil.which("chromium") or "/usr/bin/chromium")
+    args = parser.parse_args(argv)
+    output = args.output
     output.mkdir(parents=True, exist_ok=True)
     current_snapshot = snapshot()
     records = [record("observation-1", "one"), record("observation-2", "two")]
@@ -239,7 +246,7 @@ def main() -> int:
 
     with serve_dist() as url, sync_playwright() as playwright:
         browser = playwright.chromium.launch(
-            executable_path=shutil.which("chromium") or "/usr/bin/chromium",
+            executable_path=args.chromium,
             headless=True,
             args=["--no-sandbox"],
         )
@@ -251,15 +258,21 @@ def main() -> int:
         assert page.evaluate("[innerWidth, innerHeight]") == [800, 480]
         assert page.evaluate("[document.documentElement.scrollWidth, document.documentElement.scrollHeight]") == [800, 480]
         assert not undersized_controls(page)
+        assert_persistent_masthead(page)
+        wait_for_paint(page, 0)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(output / "home-800x480.png"))
         assert page.get_by_text("Models: Unavailable", exact=True).is_visible()
 
         page.get_by_text("Scan for Plants", exact=True).click()
         page.wait_for_timeout(200)
+        assert_persistent_masthead(page)
         assert page.locator(".side-header").inner_text() == "Not confident"
         assert not page.locator(".demo-tag").count()
         assert page.get_by_role("button", name="Save to Library").is_disabled()
         assert page.get_by_text("field validation is incomplete", exact=False).is_visible()
+        wait_for_paint(page, 0)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(output / "scan-baseline-abstention-800x480.png"))
 
         page.get_by_role("button", name="Home").click()
@@ -268,9 +281,12 @@ def main() -> int:
         assert page.locator(".library-row").count() == 1
         assert page.get_by_text("2 observation(s)").is_visible()
         page.get_by_role("button", name="Details").click()
+        assert_persistent_masthead(page)
         assert page.get_by_role("dialog").locator(".species-name").inner_text() == "Banyan"
         assert page.evaluate("[document.documentElement.scrollWidth, document.documentElement.scrollHeight]") == [800, 480]
         assert not undersized_controls(page)
+        wait_for_paint(page, 0)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(output / "library-details-800x480.png"))
 
         page.get_by_role("button", name="Close").click()
@@ -278,9 +294,12 @@ def main() -> int:
         page.get_by_role("textbox", name="Question for Botanika").fill("Where is banyan native?")
         page.get_by_role("button", name="Send").click()
         page.wait_for_timeout(200)
+        assert_persistent_masthead(page)
         assert page.get_by_text("Banyan is native to the Indian subcontinent.").is_visible()
         assert page.evaluate("[document.documentElement.scrollWidth, document.documentElement.scrollHeight]") == [800, 480]
         assert not undersized_controls(page)
+        wait_for_paint(page, 0)
+        assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(output / "ask-grounded-800x480.png"))
         browser.close()
     print(f"Phase 6 baseline-abstention and local-data UI states verified at {output}")

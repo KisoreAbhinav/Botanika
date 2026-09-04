@@ -8,11 +8,14 @@ from pathlib import Path
 
 from verify_phase8_ui import (
     assert_fixed_pi_canvas,
+    assert_persistent_masthead,
+    assert_persistent_masthead_pixels,
     assert_portrait_layout,
     capabilities,
     mode_status,
     new_context,
     serve_dist,
+    wait_for_paint,
 )
 
 
@@ -76,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
             page.get_by_role("button", name="Ask Botanika").click()
             page.wait_for_selector(".chat-shell", timeout=3000)
             assert_fixed_pi_canvas(page)
+            assert_persistent_masthead(page)
+            wait_for_paint(page)
+            assert_persistent_masthead_pixels(page)
             page.screenshot(path=str(args.output / "ask-800x480.png"))
             page.get_by_role("button", name="Home").click()
             # The production card is disabled without the independent Weed
@@ -84,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
             page.locator(".home-card").nth(2).click()
             page.wait_for_selector(".weed-page", timeout=3000)
             assert_fixed_pi_canvas(page)
+            assert_persistent_masthead(page)
+            wait_for_paint(page)
+            assert_persistent_masthead_pixels(page)
             page.screenshot(path=str(args.output / "weeds-800x480.png"))
         finally:
             context.close()
