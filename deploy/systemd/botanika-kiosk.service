@@ -1,0 +1,23 @@
+[Unit]
+Description=Botanika 800x480 Chromium kiosk
+After=botanika-backend.service graphical.target
+Wants=botanika-backend.service
+PartOf=botanika-backend.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/botanika
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStart=/usr/bin/python3 /opt/botanika/tools/launch_kiosk.py --ready-url http://127.0.0.1:8000/api/v1/health/ready --app-url http://127.0.0.1:8000/
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=90
+TimeoutStopSec=15
+KillMode=mixed
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=120
+
+[Install]
+WantedBy=graphical.target

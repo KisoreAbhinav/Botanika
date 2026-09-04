@@ -54,6 +54,75 @@ measured evidence and an operator result.
 - Confirm an uncertain demo result is shown as `Not confident` and does not
   offer a confirmed-species save action.
 
+## Phase 7 private Wi-Fi
+
+- Confirm a recovery path remains available before enabling the AP, then record
+  the pre-change network state.
+- On the target Pi, enable the configured AP and verify the stable
+  `192.168.50.1/24` address, SSID, WPA2/WPA3-compatible authentication, and
+  `botanika.home.arpa` resolution from a phone.
+- With mobile data disabled, load `/connect`, `/api/v1/health/live`, and the
+  same `/` application from the phone; verify the page is served by FastAPI and
+  no internet connection is required.
+- Inspect listeners and firewall rules on every interface: loopback and
+  `wlan0` may reach the API, unrelated interfaces may not, and AP traffic must
+  not be forwarded upstream.
+- Verify DHCP/DNS lease and hostname behavior, backend restart and browser
+  reconnection, AP stop/start, reboot recovery, and the explicit
+  `manage_access_point.py recover` path.
+- Confirm the Pi kiosk still reaches `127.0.0.1`, the camera/classifier/library
+  services are unchanged, and `disable` returns safely to loopback SOLO.
+
+## Phase 8 pairing and handoff
+
+- With the configured button and LEDs attached, cold-boot the Pi and confirm
+  outputs are safe during startup, the SOLO LED mapping is correct, a debounced
+  press enters NETWORKED_UNPAIRED, and cleanup turns every LED off.
+- From a phone joined only to the Pi AP, load the handoff page, confirm the AP
+  guidance and short code, pair one browser, and verify the Pi returns to its
+  exact 800×480 status console.
+- Confirm a second browser cannot become controller, then verify explicit
+  disconnect, mode change, operator takeover, lease expiry, and backend restart
+  revoke the old controller and expose a fresh safe pairing path.
+- On a real portrait phone, check camera permission allowed, denied, and
+  unavailable paths. Confirm live video stays local, the manual fallback is
+  clearly labelled, and only the selected crop reaches the Pi.
+- Complete the paired scan journey: local camera frame → local quality/crop
+  decision → crop hash/dimensions match across upload → Pi classification →
+  returned name/confidence/details/category → local result box → authoritative
+  Pi library save.
+- Check reconnect, stale response, interrupted crop upload, Pi-unavailable, and
+  retry/cancel behavior while the pending crop remains available.
+- Check location allowed, denied, unavailable, and inaccurate cases. Confirm
+  position is requested only on explicit save and that latitude, longitude,
+  accuracy, timestamp, and source are retained only when valid.
+
+## Phase 9 extras and final hardening
+
+- Ingest the reviewed knowledge corpus offline; verify the source/license
+  manifest, catalog checksum, FTS5 rows, compact embedding index, and stable
+  chunk citations after a rebuild.
+- Ask a known botanical question by text and by voice. Confirm the answer
+  shows its local citations, an unrelated question says that evidence is
+  insufficient, and microphone/speaker/model failure leaves typed chat usable.
+- Verify voice start timeout, short-silence endpointing, one-owner audio
+  coordination, cached models, and playback interruption on the real devices.
+- Create repeated and deleted library discoveries, then back up and restore;
+  confirm coverage, category progress, first/repeat indicators, milestones,
+  and anonymous aggregate values reproduce from active records.
+- In SOLO, run Weed Beta against a real Pi frame; in NETWORKED, analyze one
+  captured paired-browser still. Confirm multiple supported boxes/confidences,
+  no live browser video, no plant-library/image persistence, and the exact
+  missing-position message: `Exact location could not be found. Coordinate
+  collection was skipped.`
+- Verify the independent weed model's crop/region/license scope and accurate
+  coordinate-only records, with no drone or chemical control path.
+- Perform cold/offline boot, service restart, camera/audio reacquisition,
+  pairing recovery, disk-full/read-only, corrupt-model, database
+  backup/restore, power-loss-safe, multi-hour soak, and five structured
+  usability sessions. Record CPU, RAM, latency, temperature, throttling, and
+  operator findings in the Phase 9 report.
+
 ## Final evidence
 
 For each check, record the date, command/configuration, measured result,

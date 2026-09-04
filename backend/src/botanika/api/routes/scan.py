@@ -11,6 +11,7 @@ import numpy as np
 from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
+from botanika.api.auth import require_local_operator, require_local_or_controller
 from botanika.api.runtime import Runtime, get_runtime
 from botanika.api.schemas import FallbackCaptureRequest, OkResponse, SelectBoxRequest
 from botanika.core.errors import ValidationError
@@ -23,6 +24,7 @@ MJPG_HEADER = b"Content-Type: image/jpeg\r\nContent-Length: "
 @router.get("/state")
 async def scan_state(request: Request) -> dict[str, Any]:
     runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
     snapshot = runtime.scan.latest_snapshot()
     if snapshot is None:
         return {
@@ -39,12 +41,14 @@ async def scan_state(request: Request) -> dict[str, Any]:
 
 @router.post("/manual-capture", response_model=OkResponse)
 async def manual_capture(request: Request) -> OkResponse:
+    require_local_operator(request)
     get_runtime(request).scan.request_manual_capture()
     return OkResponse(detail="manual capture requested")
 
 
 @router.post("/select", response_model=OkResponse)
 async def select_box(request: Request, body: SelectBoxRequest) -> OkResponse:
+    require_local_operator(request)
     accepted = get_runtime(request).scan.request_select_box(body.index)
     if not accepted:
         raise ValidationError("the selected box index is not available")
@@ -53,18 +57,21 @@ async def select_box(request: Request, body: SelectBoxRequest) -> OkResponse:
 
 @router.post("/retake", response_model=OkResponse)
 async def retake(request: Request) -> OkResponse:
+    require_local_operator(request)
     get_runtime(request).scan.request_retake()
     return OkResponse(detail="scan reset to detection")
 
 
 @router.post("/cancel", response_model=OkResponse)
 async def cancel(request: Request) -> OkResponse:
+    require_local_operator(request)
     get_runtime(request).scan.request_cancel()
     return OkResponse(detail="scan cancelled")
 
 
 @router.post("/fallback", response_model=OkResponse)
 async def fallback_upload(request: Request, file: UploadFile = File(...)) -> OkResponse:
+    require_local_operator(request)
     runtime = get_runtime(request)
     payload = await file.read(runtime.settings.max_fallback_upload_bytes + 1)
     if not payload:
@@ -83,6 +90,7 @@ async def fallback_upload(request: Request, file: UploadFile = File(...)) -> OkR
 
 @router.post("/fallback/capture", response_model=OkResponse)
 async def fallback_capture(request: Request, body: FallbackCaptureRequest) -> OkResponse:
+    require_local_operator(request)
     accepted = get_runtime(request).scan.request_fallback_capture(body.index)
     if not accepted:
         raise ValidationError("no eligible target at that index in the local image")
@@ -91,6 +99,7 @@ async def fallback_capture(request: Request, body: FallbackCaptureRequest) -> Ok
 
 @router.post("/fallback/clear", response_model=OkResponse)
 async def fallback_clear(request: Request) -> OkResponse:
+    require_local_operator(request)
     get_runtime(request).scan.clear_fallback()
     return OkResponse(detail="local image cleared")
 
@@ -99,6 +108,7 @@ async def fallback_clear(request: Request) -> OkResponse:
 async def preview_stream(request: Request) -> StreamingResponse:
     """Backend-owned MJPEG stream of the latest letterboxed preview frame."""
 
+    require_local_operator(request)
     runtime = get_runtime(request)
     return StreamingResponse(
         _mjpg_generator(runtime),
@@ -132,6 +142,7 @@ async def _mjpg_generator(runtime: Runtime) -> AsyncGenerator[bytes, None]:
 async def event_stream(request: Request) -> StreamingResponse:
     """Server-sent snapshot events for boxes, quality, and scan state."""
 
+    require_local_operator(request)
     runtime = get_runtime(request)
     return StreamingResponse(
         _sse_generator(runtime),

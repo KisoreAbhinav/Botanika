@@ -1,8 +1,8 @@
-"""Pydantic request/response schemas for the Phase 6 local API."""
+"""Pydantic request/response schemas for the Phase 9 local API."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -46,10 +46,25 @@ class LibraryListResponse(BaseModel):
     categories: list[str] = Field(default_factory=list)
     coverage: dict[str, Any] = Field(default_factory=dict)
     groups: list[dict[str, Any]] = Field(default_factory=list)
+    progress: dict[str, Any] = Field(default_factory=dict)
+    aggregate: dict[str, Any] = Field(default_factory=dict)
+
+
+class PositionRequest(BaseModel):
+    """Optional browser position sampled only at an explicit save action."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    accuracy_m: float = Field(ge=0, le=1_000_000)
+    timestamp: float | None = Field(default=None, ge=0)
+    source: str = Field(min_length=1, max_length=120)
 
 
 class LibrarySaveRequest(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
+    position: PositionRequest | None = None
+    request_id: str | None = Field(default=None, min_length=1, max_length=120)
+    crop_hash: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
 
 
 class LibraryNoteRequest(BaseModel):
@@ -65,6 +80,7 @@ class SpeciesListResponse(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     context_species_id: str | None = None
+    speak: bool = False
 
 
 class ChatResponse(BaseModel):
@@ -72,6 +88,27 @@ class ChatResponse(BaseModel):
     citations: list[dict[str, Any]]
     evidence: list[dict[str, Any]]
     abstained: bool
+    engine: str = "offline-extractive"
+    playback: dict[str, Any] | None = None
+
+
+class VoiceSpeakRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class ModeSetRequest(BaseModel):
+    mode: Literal["SOLO", "NETWORKED_UNPAIRED"]
+
+
+class PairingRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=16)
+    device_name: str = Field(default="Paired browser", min_length=1, max_length=80)
+    client_id: str | None = Field(default=None, max_length=120)
+
+
+class DeviceRequest(BaseModel):
+    device_name: str = Field(default="Paired browser", min_length=1, max_length=80)
+    client_id: str | None = Field(default=None, max_length=120)
 
 
 class DiagnosticsLogEntry(BaseModel):

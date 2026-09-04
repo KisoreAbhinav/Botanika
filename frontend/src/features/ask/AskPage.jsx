@@ -1,16 +1,53 @@
-import { useRef, useState } from "react";
-import { askBotanika } from "../../platform/api.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  askBotanika,
+  fetchVoiceStatus,
+  interruptVoice,
+  listenBotanika,
+  speakBotanika,
+} from "../../platform/api.js";
 
 const ABSTENTION = "I could not find enough reliable offline information to answer that.";
 
-export function AskPage({ ready }) {
+export function AskPage({ ready, capabilities, localOperator = false, onNavigate }) {
   const knowledgeAvailable = Boolean(
-    ready && ready.capabilities && ready.capabilities.knowledge && ready.capabilities.knowledge.available,
+    capabilities?.knowledge?.available ?? ready?.capabilities?.knowledge?.available,
   );
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [voice, setVoice] = useState(null);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceError, setVoiceError] = useState(null);
   const inputRef = useRef(null);
+
+  const refreshVoice = useCallback(async () => {
+    try {
+      setVoice(await fetchVoiceStatus());
+      setVoiceError(null);
+    } catch (caught) {
+      setVoiceError(caught.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshVoice();
+    const interval = setInterval(refreshVoice, 15000);
+    return () => clearInterval(interval);
+  }, [refreshVoice]);
+
+  const appendAnswer = useCallback((answer, playback = null) => {
+    setMessages((current) => [
+      ...current,
+      {
+        role: "guide",
+        text: answer?.answer || ABSTENTION,
+        citations: answer?.citations || [],
+        abstained: Boolean(answer?.abstained),
+        playback,
+      },
+    ]);
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -21,15 +58,7 @@ export function AskPage({ ready }) {
     setBusy(true);
     try {
       const response = await askBotanika(value);
-      setMessages((current) => [
-        ...current,
-        {
-          role: "guide",
-          text: response.answer || ABSTENTION,
-          citations: response.citations || [],
-          abstained: response.abstained,
-        },
-      ]);
+      appendAnswer(response, response.playback);
     } catch (caught) {
       setMessages((current) => [...current, { role: "error", text: caught.message }]);
     } finally {
@@ -37,6 +66,68 @@ export function AskPage({ ready }) {
       inputRef.current?.focus();
     }
   };
+
+  const listen = async () => {
+    if (voiceBusy || !localOperator) return;
+    setVoiceBusy(true);
+    setVoiceError(null);
+    try {
+      const response = await listenBotanika();
+      if (response.transcript) {
+        setMessages((current) => [...current, { role: "user", text: response.transcript, spoken: true }]);
+      }
+      const destination = navigationDestination(response.transcript);
+      if (destination && onNavigate) {
+        onNavigate(destination);
+        setVoiceError(`Opened ${destination}.`);
+        await refreshVoice();
+        return;
+      }
+      if (response.answer) appendAnswer(response.answer, response.playback);
+      if (response.detail && !response.transcript) setVoiceError(response.detail);
+      await refreshVoice();
+    } catch (caught) {
+      setVoiceError(caught.message);
+      await refreshVoice();
+    } finally {
+      setVoiceBusy(false);
+    }
+  };
+
+  const speakAnswer = async (index, text) => {
+    if (!localOperator || voiceBusy) return;
+    setVoiceBusy(true);
+    setVoiceError(null);
+    try {
+      const playback = await speakBotanika(text);
+      setMessages((current) => current.map((message, messageIndex) => (
+        messageIndex === index ? { ...message, playback } : message
+      )));
+    } catch (caught) {
+      setVoiceError(caught.message);
+    } finally {
+      setVoiceBusy(false);
+      await refreshVoice();
+    }
+  };
+
+  const stopSpeaking = async () => {
+    try {
+      await interruptVoice();
+      await refreshVoice();
+    } catch (caught) {
+      setVoiceError(caught.message);
+    }
+  };
+
+  const voiceReady = Boolean(localOperator && voice?.available);
+  const voiceLabel = !localOperator
+    ? "Pi-local voice"
+    : voice?.state === "speaking"
+      ? "Speaking"
+      : voiceReady
+        ? "Ready"
+        : "Unavailable";
 
   return (
     <div className="chat-shell">
@@ -59,14 +150,24 @@ export function AskPage({ ready }) {
           )}
           {messages.map((message, index) => (
             <article className={`chat-message ${message.role}`} key={`${message.role}-${index}`}>
-              <div className="chat-role">{message.role === "user" ? "You" : "Botanika"}</div>
+              <div className="chat-role">{message.role === "user" ? (message.spoken ? "You · spoken" : "You") : "Botanika"}</div>
               <p>{message.text}</p>
               {message.abstained && <span className="badge">Evidence insufficient</span>}
+              {message.role === "guide" && localOperator && !message.abstained && (
+                <div className="chat-message-actions">
+                  <button type="button" className="btn quiet" onClick={() => speakAnswer(index, message.text)} disabled={voiceBusy || !voiceReady}>
+                    {message.playback?.status === "played" ? "Speak again" : "Speak answer"}
+                  </button>
+                  {voice?.state === "speaking" && <button type="button" className="btn quiet" onClick={stopSpeaking}>Stop</button>}
+                </div>
+              )}
+              {message.playback?.status === "unavailable" && <div className="chat-playback-note">Answer shown; local playback unavailable.</div>}
               {message.citations && message.citations.length > 0 && (
-                <div className="citation-list">
+                <div className="citation-list" aria-label="Answer citations">
                   {message.citations.map((citation) => (
-                    <a href={citation.source?.url} target="_blank" rel="noreferrer" key={citation.chunk_id}>
-                      Source: {citation.source?.title || citation.source?.source_id}
+                    <a href={citation.source?.url || "#"} target="_blank" rel="noreferrer" key={citation.chunk_id}>
+                      Source: {citation.source?.title || citation.source?.source_id || citation.chunk_id}
+                      {citation.source?.license ? ` · ${citation.source.license}` : ""}
                     </a>
                   ))}
                 </div>
@@ -97,14 +198,31 @@ export function AskPage({ ready }) {
           <p className="chat-note">Answers are assembled from reviewed local facts. Missing evidence produces an explicit abstention.</p>
           <div className="chat-voice-state">
             <div className="eyebrow">Voice</div>
-            <strong>Text ready</strong>
-            <p>Pi microphone and speaker coordination is scheduled for the voice phase. Typed questions remain available offline.</p>
+            <strong>{voiceLabel}</strong>
+            <p>{voice?.detail || "Checking the Pi microphone, local STT, Piper voice, and speaker…"}</p>
           </div>
-          <button type="button" className="btn quiet" disabled title="Voice is not enabled in Phase 6">
-            Microphone unavailable
-          </button>
+          {localOperator ? (
+            <>
+              <button type="button" className="btn quiet" onClick={listen} disabled={voiceBusy || !voiceReady}>
+                {voiceBusy ? "Listening…" : "Ask by voice"}
+              </button>
+              {voice?.state === "speaking" && <button type="button" className="btn quiet" onClick={stopSpeaking}>Stop playback</button>}
+            </>
+          ) : (
+            <span className="badge">Typed chat works on paired browsers</span>
+          )}
+          {voiceError && <p className="chat-error">{voiceError}</p>}
         </div>
       </aside>
     </div>
   );
+}
+
+function navigationDestination(transcript) {
+  const value = String(transcript || "").toLowerCase();
+  if (/\b(go|open|show|take me)\b.*\b(home|start)\b/.test(value)) return "home";
+  if (/\b(go|open|show|take me)\b.*\b(scan|camera)\b/.test(value)) return "scan";
+  if (/\b(go|open|show|take me)\b.*\b(library|discoveries)\b/.test(value)) return "library";
+  if (/\b(go|open|show|take me)\b.*\b(weed|weeds)\b/.test(value)) return "weeds";
+  return null;
 }

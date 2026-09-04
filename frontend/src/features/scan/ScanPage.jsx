@@ -10,8 +10,16 @@ import {
 import { ScanOverlay } from "./ScanOverlay.jsx";
 import { ScanSidePanel } from "./ScanSidePanel.jsx";
 import { ScanActions } from "./ScanActions.jsx";
+import { NetworkedScanPage } from "../networked/NetworkedScanPage.jsx";
 
-export function ScanPage({ notify, capabilities }) {
+export function ScanPage({ notify, capabilities, networked = false, onLeaseLost }) {
+  if (networked) {
+    return <NetworkedScanPage notify={notify} onLeaseLost={onLeaseLost} />;
+  }
+  return <SoloScanPage notify={notify} capabilities={capabilities} />;
+}
+
+function SoloScanPage({ notify, capabilities }) {
   const [snapshot, setSnapshot] = useState(null);
   const [connected, setConnected] = useState(false);
   const [saveState, setSaveState] = useState("idle");

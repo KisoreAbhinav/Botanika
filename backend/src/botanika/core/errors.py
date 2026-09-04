@@ -24,6 +24,13 @@ class CapabilityUnavailableError(BotanikaError):
     http_status = 503
 
 
+class ControllerAuthorizationError(BotanikaError):
+    """A networked controller request has no valid active lease."""
+
+    code = "controller_authorization_required"
+    http_status = 401
+
+
 class ValidationError(BotanikaError):
     """A request was well-formed but semantically invalid."""
 

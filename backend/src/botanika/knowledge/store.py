@@ -7,12 +7,21 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 from typing import Any, Iterable
 import uuid
 
 from botanika.storage.database import SQLiteDatabase, utc_now
 
 from .catalog import CatalogDefinition, CatalogIntegrityError, SpeciesRecord, load_catalog, normalize_name
+from .embeddings import (
+    DEFAULT_DIMENSIONS,
+    EMBEDDING_VERSION,
+    cosine,
+    embed,
+    pack,
+    unpack,
+)
 
 
 ABSTENTION = "I could not find enough reliable offline information to answer that."
@@ -89,6 +98,10 @@ class KnowledgeStore:
     def seed_catalog(self) -> None:
         """Insert the immutable seed and reject silent catalog drift."""
 
+        # A restore may come from a pre-Phase-9 database.  Re-run the schema
+        # boundary before rebuilding the knowledge index so upgrades remain
+        # safe and deterministic.
+        self.database.migrate()
         now = utc_now()
         with self.database.transaction() as connection:
             existing_meta = {
@@ -297,6 +310,46 @@ class KnowledgeStore:
             connection.execute(
                 "INSERT INTO knowledge_fts(chunk_id, species_id, content) SELECT chunk_id, species_id, content FROM knowledge_chunks"
             )
+            self._rebuild_embedding_index(connection, now)
+
+    def _rebuild_embedding_index(self, connection, now: str) -> None:
+        """Rebuild the compact index from the authoritative chunk rows."""
+
+        connection.execute("DELETE FROM knowledge_embeddings")
+        rows = connection.execute(
+            "SELECT chunk_id, content, checksum FROM knowledge_chunks ORDER BY chunk_id"
+        ).fetchall()
+        connection.executemany(
+            """
+            INSERT INTO knowledge_embeddings(
+                chunk_id, embedding_version, dimensions, vector, checksum, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    str(row["chunk_id"]),
+                    EMBEDDING_VERSION,
+                    DEFAULT_DIMENSIONS,
+                    pack(embed(str(row["content"]), DEFAULT_DIMENSIONS)),
+                    str(row["checksum"]),
+                    now,
+                )
+                for row in rows
+            ],
+        )
+        manifest = self._manifest_from_connection(connection)
+        connection.execute("DELETE FROM knowledge_ingestion")
+        connection.executemany(
+            "INSERT INTO knowledge_ingestion(key, value) VALUES (?, ?)",
+            [
+                ("format", "botanika-knowledge-1"),
+                ("embedding_version", EMBEDDING_VERSION),
+                ("embedding_dimensions", str(DEFAULT_DIMENSIONS)),
+                ("manifest_digest", manifest["manifest_digest"]),
+                ("chunk_count", str(len(rows))),
+                ("ingested_at", now),
+            ],
+        )
 
     def get_species(self, species_id: str) -> SpeciesRecord | None:
         return self.catalog.species_by_id().get(species_id)
@@ -326,6 +379,7 @@ class KnowledgeStore:
         *,
         species_id: str | None = None,
         limit: int = 5,
+        use_embedding: bool = True,
     ) -> list[KnowledgeHit]:
         query = str(query or "").strip()
         if not query or limit <= 0:
@@ -388,18 +442,150 @@ class KnowledgeStore:
             for row in rows
             if species_id is None or str(row["species_id"]) == species_id
         ]
-        return hits[:limit]
+        if hits:
+            return hits[:limit]
+
+        # FTS remains the primary path.  The compact index is a bounded,
+        # local lexical similarity fallback, and its threshold deliberately
+        # favours abstention over a weak match.
+        return self.embedding_search(query, species_id=species_id, limit=limit) if use_embedding else []
+
+    def embedding_search(
+        self,
+        query: str,
+        *,
+        species_id: str | None = None,
+        limit: int = 5,
+        minimum_score: float = 0.24,
+    ) -> list[KnowledgeHit]:
+        """Search the deterministic compact index and preserve citations."""
+
+        query = str(query or "").strip()
+        if not query or limit <= 0:
+            return []
+        query_vector = embed(query, DEFAULT_DIMENSIONS)
+        clause = " AND k.species_id = ?" if species_id is not None else ""
+        params: tuple[object, ...] = (species_id,) if species_id is not None else ()
+        with self.database.transaction(immediate=False) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT e.chunk_id, e.dimensions, e.vector, k.species_id, k.content,
+                       k.source_id, s.title, s.url, s.license
+                FROM knowledge_embeddings e
+                JOIN knowledge_chunks k ON k.chunk_id = e.chunk_id
+                JOIN sources s ON s.source_id = k.source_id
+                WHERE e.embedding_version = ?{clause}
+                """,
+                (EMBEDDING_VERSION, *params),
+            ).fetchall()
+        ranked: list[tuple[float, object]] = []
+        for row in rows:
+            try:
+                score = cosine(query_vector, unpack(row["vector"], int(row["dimensions"])))
+            except (TypeError, ValueError, struct.error):
+                continue
+            if score >= minimum_score:
+                ranked.append((score, row))
+        ranked.sort(key=lambda item: (-item[0], str(item[1]["chunk_id"])))
+        return [
+            KnowledgeHit(
+                chunk_id=str(row["chunk_id"]),
+                species_id=str(row["species_id"]) if row["species_id"] is not None else None,
+                content=str(row["content"]),
+                source_id=str(row["source_id"]),
+                source_title=str(row["title"]),
+                source_url=str(row["url"]),
+                source_license=str(row["license"]),
+                score=float(score),
+            )
+            for score, row in ranked[:limit]
+        ]
+
+    def knowledge_manifest(self) -> dict[str, Any]:
+        """Return a stable source/chunk/license manifest for diagnostics."""
+
+        with self.database.transaction(immediate=False) as connection:
+            return self._manifest_from_connection(connection)
+
+    def ingestion_status(self) -> dict[str, Any]:
+        with self.database.transaction(immediate=False) as connection:
+            rows = connection.execute(
+                "SELECT key, value FROM knowledge_ingestion ORDER BY key"
+            ).fetchall()
+        return {str(row["key"]): str(row["value"]) for row in rows}
+
+    def _manifest_from_connection(self, connection) -> dict[str, Any]:
+        sources = [
+            {
+                "source_id": str(row["source_id"]),
+                "title": str(row["title"]),
+                "publisher": str(row["publisher"]),
+                "url": str(row["url"]),
+                "license": str(row["license"]),
+                "license_url": row["license_url"],
+                "retrieved_at": row["retrieved_at"],
+                "checksum": row["checksum"],
+                "source_type": str(row["source_type"]),
+            }
+            for row in connection.execute(
+                "SELECT source_id, title, publisher, url, license, license_url, "
+                "retrieved_at, checksum, source_type FROM sources ORDER BY source_id"
+            ).fetchall()
+        ]
+        chunks = [
+            {
+                "chunk_id": str(row["chunk_id"]),
+                "species_id": row["species_id"],
+                "source_id": str(row["source_id"]),
+                "chunk_index": int(row["chunk_index"]),
+                "checksum": str(row["checksum"]),
+            }
+            for row in connection.execute(
+                "SELECT chunk_id, species_id, source_id, chunk_index, checksum "
+                "FROM knowledge_chunks ORDER BY chunk_id"
+            ).fetchall()
+        ]
+        value: dict[str, Any] = {
+            "format": "botanika-knowledge-1",
+            "catalog_id": self.catalog.catalog_id,
+            "catalog_version": self.catalog.version,
+            "catalog_region": self.catalog.region,
+            "catalog_digest": self.catalog.digest,
+            "embedding": {
+                "version": EMBEDDING_VERSION,
+                "dimensions": DEFAULT_DIMENSIONS,
+                "algorithm": "sha256-signed-token-and-bigram-hashing",
+            },
+            "sources": sources,
+            "chunks": chunks,
+        }
+        canonical = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        value["manifest_digest"] = hashlib.sha256(canonical).hexdigest()
+        return value
 
     def answer(self, query: str, *, context_species_id: str | None = None) -> GroundedAnswer:
         query = str(query or "").strip()
         if not query:
             return GroundedAnswer(ABSTENTION, (), (), True)
         context = self.get_species(context_species_id) if context_species_id else None
-        hits = self.search(query, species_id=context_species_id, limit=4) if context_species_id else self.search(query, limit=4)
+        # Generation/answering first uses exact reviewed retrieval.  The
+        # compact embedding index remains available to search callers, but its
+        # deliberately tiny hashing model must not turn an unrelated question
+        # into a plausible-looking botanical answer.
+        hits = (
+            self.search(query, species_id=context_species_id, limit=4, use_embedding=False)
+            if context_species_id
+            else self.search(query, limit=4, use_embedding=False)
+        )
         if not hits:
             resolved = self._resolve_species(query)
             if resolved is not None:
-                hits = self.search(resolved.species_id, species_id=resolved.species_id, limit=4)
+                hits = self.search(
+                    resolved.species_id,
+                    species_id=resolved.species_id,
+                    limit=4,
+                    use_embedding=False,
+                )
                 if not hits:
                     hits = self._species_facts(resolved.species_id, limit=4)
         if not hits and context is not None:

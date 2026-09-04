@@ -1,0 +1,18 @@
+# Botanika Phase 7 private DHCP and DNS. No upstream resolver is configured;
+# the AP is intentionally useful without internet access.
+interface=wlan0
+bind-dynamic
+listen-address=192.168.50.1
+no-dhcp-interface=lo
+port=53
+no-resolv
+no-hosts
+domain-needed
+bogus-priv
+local=/botanika.home.arpa/
+address=/botanika.home.arpa/192.168.50.1
+dhcp-authoritative
+dhcp-range=192.168.50.20,192.168.50.200,255.255.255.0,12h
+dhcp-option=3,192.168.50.1
+dhcp-option=6,192.168.50.1
+log-dhcp

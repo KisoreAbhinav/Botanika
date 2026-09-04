@@ -35,6 +35,7 @@ from botanika.vision.detection import (
     YoloOnnxDetector,
 )
 from botanika.vision.quality import (
+    CaptureResult,
     CropStore,
     LockOnConfig,
     LockOnEngine,
@@ -170,6 +171,10 @@ class ScanService:
         self._fallback_sequence = 0
         self._preview_sequence = 0
         self._classification_cancellation: CancellationToken | None = None
+        self._external_pipeline = ClassificationPipeline(self._classifier)
+        self._external_classification_lock = threading.Lock()
+        self._external_capture: CaptureResult | None = None
+        self._controller_mode = threading.Event()
 
         self._camera: CameraOwner | None = None
         self._detector: YoloOnnxDetector | None = None
@@ -276,6 +281,35 @@ class ScanService:
             self._restart_requested = True
             self._camera_error = None
 
+    def set_application_mode(self, mode: object) -> None:
+        """Hand camera ownership to the paired browser when required.
+
+        The Pi camera loop remains the SOLO owner. In paired mode it closes its
+        resources and waits, so a browser crop cannot race a Pi capture or be
+        overwritten by a later Pi-camera snapshot.
+        """
+
+        value = getattr(mode, "value", mode)
+        paired = str(value).upper() == "NETWORKED_PAIRED"
+        handoff = str(value).upper() != "SOLO"
+        if handoff:
+            self._controller_mode.set()
+            with self._state_lock:
+                if self._classification_cancellation is not None:
+                    self._classification_cancellation.cancel()
+            if paired:
+                self._publish_controller_waiting()
+        else:
+            was_handoff = self._controller_mode.is_set()
+            self._controller_mode.clear()
+            if was_handoff:
+                with self._state_lock:
+                    self._restart_requested = True
+                    self._camera_error = None
+                self._publish_starting()
+
+    set_mode = set_application_mode
+
     # -- operator commands ----------------------------------------------------
 
     def request_manual_capture(self) -> None:
@@ -352,12 +386,133 @@ class ScanService:
     def latest_preview(self) -> PreviewFrame | None:
         return self.preview_buffer.get()
 
+    def latest_frame(self) -> np.ndarray | None:
+        """Return a copy of the newest Pi frame for one still-image beta job."""
+
+        with self._state_lock:
+            if self._frame is None:
+                return None
+            return np.ascontiguousarray(self._frame.copy())
+
+    def classify_external_crop(
+        self,
+        encoded_bytes: bytes,
+        *,
+        image: np.ndarray | None = None,
+        request_id: str | None = None,
+        controller_lease_id: str | None = None,
+        commit_guard: Callable[[Callable[[], None]], None] | None = None,
+        on_commit: Callable[[object], None] | None = None,
+    ):
+        """Classify one crop handed off by the paired browser.
+
+        This deliberately bypasses the Pi camera/detector loop while reusing
+        the same :class:`ClassificationPipeline` and classifier object.  The
+        resulting capture is published as the latest authoritative snapshot so
+        the existing library save route can persist it transactionally.
+        """
+
+        if not isinstance(encoded_bytes, (bytes, bytearray)) or not encoded_bytes:
+            raise ValueError("external crop bytes must be non-empty")
+        encoded = bytes(encoded_bytes)
+        decoded = image
+        if decoded is None:
+            import cv2
+
+            decoded = cv2.imdecode(np.frombuffer(encoded, np.uint8), cv2.IMREAD_COLOR)
+        if not isinstance(decoded, np.ndarray) or decoded.ndim != 3 or decoded.shape[2] != 3:
+            raise ValueError("external crop could not be decoded as a 3-channel image")
+        if decoded.dtype != np.uint8 or min(decoded.shape[:2]) < 3:
+            raise ValueError("external crop must be a non-empty uint8 image")
+
+        with self._external_classification_lock:
+            capture = self._crop_store.save_external(encoded, decoded)
+            committed = False
+            try:
+                classification = self._external_pipeline.classify_capture(
+                    capture,
+                    request_id=request_id,
+                )
+                width = int(decoded.shape[1])
+                height = int(decoded.shape[0])
+                detection = Detection(
+                    class_id=-1,
+                    label="manual crop",
+                    confidence=1.0,
+                    box=BoundingBox(0.0, 0.0, float(width), float(height)),
+                )
+                transform = OverlayTransform.for_frame(
+                    width,
+                    height,
+                    self.settings.preview_width,
+                    self.settings.preview_height,
+                )
+                state = (
+                    LockOnState.CAPTURED
+                    if classification.result.is_accepted
+                    else LockOnState.CHECKING_SHARPNESS
+                )
+                hint = (
+                    "Controller crop classified"
+                    if classification.result.is_accepted
+                    else "Controller crop needs another view"
+                )
+                snapshot = ScanSnapshot(
+                    sequence=0,
+                    timestamp=self._clock(),
+                    session_id=f"controller-{classification.request_id}",
+                    mode="controller",
+                    state=state,
+                    hint=hint,
+                    transform=transform,
+                    source_sequence=None,
+                    source_timestamp=None,
+                    detections=(detection,),
+                    selected_index=0,
+                    quality=None,
+                    stable_checks=self._lock_config.stable_checks,
+                    required_checks=self._lock_config.stable_checks,
+                    capture=capture,
+                    classification=classification,
+                    processing=False,
+                    camera_available=self.camera_running,
+                    detector_p50_ms=self._detector.metrics.p50_ms if self._detector else 0.0,
+                    detector_p95_ms=self._detector.metrics.p95_ms if self._detector else 0.0,
+                    controller_lease_id=controller_lease_id,
+                )
+
+                def commit() -> None:
+                    previous = self._external_capture
+                    self._external_capture = capture
+                    if previous is not None and previous.path != capture.path:
+                        self._crop_store.discard(previous)
+                    self.events.publish(snapshot)
+                    if on_commit is not None:
+                        on_commit(classification)
+
+                if commit_guard is None:
+                    commit()
+                else:
+                    commit_guard(commit)
+                committed = True
+                return classification
+            finally:
+                if not committed:
+                    self._crop_store.discard(capture)
+
     # -- background loop -----------------------------------------------------
 
     def _run(self) -> None:
-        self._publish_starting()
+        if self._controller_mode.is_set():
+            self._publish_controller_waiting()
+        else:
+            self._publish_starting()
         consecutive_failures = 0
         while not self._stop.is_set():
+            if self._controller_mode.is_set():
+                self._close_resources()
+                self._sleep_interruptibly(0.1)
+                continue
             if self._pending_fallback is not None:
                 self._activate_pending_fallback()
             if self._fallback is not None:
@@ -394,11 +549,16 @@ class ScanService:
         self._close_resources()
 
     def _open_resources(self) -> None:
-        camera = CameraOwner(
-            config=CAMERA_CONFIG,
-            camera_factory=self._camera_factory,
-            clock=self._clock,
-        )
+        camera_options = {
+            "config": CAMERA_CONFIG,
+            "clock": self._clock,
+        }
+        # Omitting the argument is significant: CameraOwner's constructor
+        # supplies the real Picamera2 factory. Passing None here overrides
+        # that default and makes the production camera path non-callable.
+        if self._camera_factory is not None:
+            camera_options["camera_factory"] = self._camera_factory
+        camera = CameraOwner(**camera_options)
         camera.open()
         self._camera = camera
         detector = self._ensure_detector()
@@ -447,6 +607,9 @@ class ScanService:
         self._pipeline = None
         with self._state_lock:
             self._camera_running = False
+            # A closed or failed camera must not leave a previous frame
+            # available to the independent Weed Beta still-image endpoint.
+            self._frame = None
 
     def _run_camera_loop(self) -> None:
         camera = self._camera
@@ -457,6 +620,8 @@ class ScanService:
         consecutive_drops = 0
 
         while not self._stop.is_set():
+            if self._controller_mode.is_set():
+                break
             if self._pending_fallback is not None:
                 break
             try:
@@ -469,9 +634,13 @@ class ScanService:
                     ) from exc
                 continue
             consecutive_drops = 0
+            if self._controller_mode.is_set():
+                break
             self._frame = captured.image
             self._handle_control_flags(engine)
 
+            if self._controller_mode.is_set():
+                break
             detections = detector.detect(captured.image)
             preferred = self._preferred_detection(detections)
             update = engine.update(captured.image, detections, preferred=preferred)
@@ -539,6 +708,8 @@ class ScanService:
                         hint=cancel_hint,
                     )
                     classification = None
+                if self._controller_mode.is_set():
+                    break
                 processing = False
 
             self._publish_state(
@@ -623,6 +794,31 @@ class ScanService:
             detector_p50_ms=0.0,
             detector_p95_ms=0.0,
             error=message,
+        )
+        self.events.publish(snapshot)
+
+    def _publish_controller_waiting(self) -> None:
+        snapshot = ScanSnapshot(
+            sequence=0,
+            timestamp=self._clock(),
+            session_id=f"controller-{int(self._clock() * 1000)}",
+            mode="controller",
+            state=LockOnState.SEARCHING,
+            hint="Waiting for a crop from the paired browser",
+            transform=None,
+            source_sequence=None,
+            source_timestamp=None,
+            detections=(),
+            selected_index=None,
+            quality=None,
+            stable_checks=0,
+            required_checks=self._lock_config.stable_checks,
+            capture=None,
+            classification=None,
+            processing=False,
+            camera_available=False,
+            detector_p50_ms=0.0,
+            detector_p95_ms=0.0,
         )
         self.events.publish(snapshot)
 
@@ -940,6 +1136,8 @@ class ScanService:
         """Keep a terminal result authoritative until the operator acts."""
 
         while not self._stop.is_set():
+            if self._controller_mode.is_set():
+                return
             with self._state_lock:
                 reset = self._reset_requested
                 cancelled = self._cancel_requested

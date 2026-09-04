@@ -143,3 +143,79 @@ layout verification with:
 It uses the installed Chromium binary, mocks only the local API boundary, checks
 detecting/locking/processing/result/uncertain/error/cancellation/fallback states,
 and refreshes `docs/evidence/phase5/` at exactly 800×480.
+
+## Phase 7 private Wi-Fi boundary
+
+The Phase 7 transport is opt-in. `run_api.py` remains loopback-only by default;
+`--network` requests AP mode but falls back safely to loopback unless the live
+AP and firewall preflight succeeds:
+
+```sh
+.venv/bin/python tools/run_api.py                 # SOLO, 127.0.0.1 only
+.venv/bin/python tools/run_api.py --network       # AP plus loopback, firewall required
+python3 tools/manage_access_point.py plan enable  # read-only recovery plan
+sudo -E python3 tools/manage_access_point.py enable
+python3 tools/manage_access_point.py status --json
+```
+
+Copy `config/environments/phase7-network.env.example` to the machine-local
+`/etc/botanika/botanika.env`, replace the WPA passphrase, and install the
+tracked files under `deploy/network/` and `deploy/systemd/` as described in
+`deploy/README.md`. The operator command supports `enable`, `disable`, and
+`recover`; it uses NetworkManager when present and falls back to hostapd plus
+dnsmasq. It never prints the passphrase.
+
+Run the safe repository check anywhere, or the live AP/loopback check on the
+Pi after a phone can join the private SSID:
+
+```sh
+.venv/bin/python tools/verify_phase7_network.py
+.venv/bin/python tools/verify_phase7_network.py --live --strict
+```
+
+## Phase 8 pairing and responsive handoff
+
+Run the hardware-independent contract verifier from the repository root:
+
+    .venv/bin/python tools/verify_phase8.py --strict
+
+It checks the three-mode lease contract, GPIO-safe software adapter, separate
+800×480/responsive layout markers, and the browser crop-only boundary. It does
+not claim a physical button, LEDs, Pi camera, phone permission, Wi-Fi pairing,
+or operator journey; those checks remain in
+docs/DEFERRED_OPERATOR_ACCEPTANCE.md.
+
+After building `frontend/`, run the local Chromium UI smoke check:
+
+    .venv/bin/python tools/verify_phase8_ui.py
+
+It mocks only the local API boundary, verifies the three Pi mode consoles at
+exactly 800×480, checks the portrait pairing/client layout and 44px controls,
+and writes deterministic evidence screenshots under `docs/evidence/phase8/`.
+The screenshots are browser-rendered fixtures and do not replace the physical
+Pi, AP, camera, or phone acceptance journey.
+
+## Phase 9 extras and final hardening
+
+Rebuild the offline knowledge index and verify its source/license boundary:
+
+```sh
+.venv/bin/python tools/ingest_knowledge.py --manifest-output docs/evidence/phase9/knowledge-manifest.json
+```
+
+Benchmark a manually installed quantized GGUF through the selected llama.cpp
+backend. No network access or model download is attempted:
+
+```sh
+.venv/bin/python tools/benchmark_local_llm.py --model models/llm/botanika.gguf --output docs/evidence/phase9/llm-benchmark.json
+```
+
+Run the hardware-independent Phase 9 contract check:
+
+```sh
+.venv/bin/python tools/verify_phase9.py --strict
+```
+
+The verifier reports the physical Pi/operator gate separately; a passing
+deterministic check is not evidence of a camera, audio, display, model,
+boot/recovery, soak, or usability pass.

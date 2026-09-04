@@ -106,6 +106,59 @@ class CropStore:
             manual=manual,
         )
 
+    def save_external(
+        self,
+        encoded_bytes: bytes,
+        image: np.ndarray,
+        *,
+        manual: bool = True,
+    ) -> CaptureResult:
+        """Persist one validated browser crop without padding or re-encoding.
+
+        The browser has already performed crop construction and local quality
+        checks.  Keeping the uploaded encoded bytes unchanged makes the hash
+        and dimensions auditable before and after the HTTP handoff.  Only this
+        crop is written; a browser video frame is never accepted by this API.
+        """
+
+        if not isinstance(encoded_bytes, (bytes, bytearray)) or not encoded_bytes:
+            raise ValueError("external crop bytes must be non-empty")
+        if not isinstance(image, np.ndarray) or image.ndim != 3 or image.shape[2] != 3:
+            raise ValueError(f"expected a 3-channel BGR crop, got {getattr(image, 'shape', None)!r}")
+        if image.dtype != np.uint8 or min(image.shape[:2]) < 3:
+            raise ValueError("external crop must be a non-empty uint8 image")
+        encoded = bytes(encoded_bytes)
+        content_hash = hashlib.sha256(encoded).hexdigest()
+        height, width = image.shape[:2]
+        now = self._clock()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._sequence += 1
+        path = self.output_dir / f"remote-{self._sequence:06d}-{content_hash[:12]}.png"
+        path.write_bytes(encoded)
+        if not path.is_file() or path.stat().st_size != len(encoded):
+            path.unlink(missing_ok=True)
+            raise OSError("external crop could not be verified")
+        self._last_hash = content_hash
+        self._last_saved_at = now
+        return CaptureResult(
+            path=path,
+            crop_box=BoundingBox(0.0, 0.0, float(width), float(height)),
+            width=width,
+            height=height,
+            content_hash=content_hash,
+            manual=manual,
+        )
+
+    def discard(self, capture: CaptureResult | None) -> None:
+        """Best-effort removal of a transient crop after a newer request."""
+
+        if capture is None or capture.path is None:
+            return
+        try:
+            capture.path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
 
 def _padded_box(box: BoundingBox, padding_ratio: float) -> BoundingBox:
     pad_x = box.width * padding_ratio

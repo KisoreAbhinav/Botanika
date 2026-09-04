@@ -41,6 +41,7 @@ class ScanSnapshot:
     detector_p50_ms: float = 0.0
     detector_p95_ms: float = 0.0
     error: str | None = None
+    controller_lease_id: str | None = None
 
     @property
     def selected(self) -> Detection | None:

@@ -1,0 +1,19 @@
+[Unit]
+Description=Botanika fallback hostapd AP
+After=network-pre.target botanika-firewall.service
+Wants=network-pre.target
+PartOf=botanika-access-point.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/botanika/botanika.env
+WorkingDirectory=/opt/botanika
+ExecStartPre=/usr/bin/install -d -m 0755 /run/botanika
+ExecStartPre=/usr/bin/python3 /opt/botanika/tools/manage_access_point.py render-hostapd --output /run/botanika/hostapd.conf
+ExecStart=/usr/sbin/hostapd /run/botanika/hostapd.conf
+Restart=on-failure
+RestartSec=2
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

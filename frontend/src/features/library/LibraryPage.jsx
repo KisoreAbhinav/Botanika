@@ -4,6 +4,8 @@ import { deleteLibraryRecord, fetchLibrary, updateLibraryNote } from "../../plat
 export function LibraryPage({ notify }) {
   const [records, setRecords] = useState(null);
   const [coverage, setCoverage] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [aggregate, setAggregate] = useState(null);
   const [categoriesFromApi, setCategoriesFromApi] = useState([]);
   const [error, setError] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
@@ -18,6 +20,8 @@ export function LibraryPage({ notify }) {
       const data = await fetchLibrary();
       setRecords(data.records || []);
       setCoverage(data.coverage || null);
+      setProgress(data.progress || null);
+      setAggregate(data.aggregate || null);
       setCategoriesFromApi(data.categories || []);
       setError(null);
     } catch (caught) {
@@ -70,7 +74,10 @@ export function LibraryPage({ notify }) {
   return (
     <div className="library">
       <div className="library-toolbar">
-        <strong>Library</strong>
+        <div className="library-heading">
+          <div className="eyebrow">04 / Saved discoveries</div>
+          <h1>Library</h1>
+        </div>
         <span className="count">{entries.length} species · {records ? records.length : "–"} observations</span>
         <label>
           <span className="visually-hidden">Filter category</span>
@@ -90,12 +97,32 @@ export function LibraryPage({ notify }) {
       </div>
 
       <section className="coverage-panel" aria-label="Coverage summary">
-        <div className="coverage-title">Local coverage</div>
+        <div className="coverage-title">Local coverage · {formatPercent(progress?.coverage_percent ?? coverage?.coverage_percent)}</div>
         <div className="coverage-note">{coverage?.message || "Location unavailable — discoveries are still saved."}</div>
         <div className="coverage-totals">
           <span>Species: <strong>{entries.length}</strong></span>
           <span>Observations: <strong>{records ? records.length : "–"}</strong></span>
           <span>Storage: <strong>{error ? "Unavailable" : "Ready"}</strong></span>
+        </div>
+      </section>
+
+      <section className="progress-panel" aria-label="Discovery progress">
+        <div className="progress-panel-head">
+          <strong>Catalog progress</strong>
+          <span>{progress?.discovered_species ?? entries.length} / {progress?.supported_species ?? "–"} species</span>
+        </div>
+        <div className="progress-categories">
+          {(progress?.category_progress || []).slice(0, 4).map((item) => (
+            <div className="progress-category" key={item.category}>
+              <span>{item.category}</span>
+              <div className="progress-track"><span style={{ width: `${item.coverage_percent || 0}%` }} /></div>
+              <small>{formatPercent(item.coverage_percent)}</small>
+            </div>
+          ))}
+        </div>
+        <div className="milestone-row">
+          {(progress?.milestones || []).filter((item) => item.complete).slice(0, 3).map((item) => <span className="milestone" key={item.id}>✓ {item.label}</span>)}
+          {aggregate?.anonymous && <span className="aggregate-note">Anonymous local summary</span>}
         </div>
       </section>
 
@@ -203,6 +230,7 @@ function priorityLabel(entry) {
 }
 
 function formatConfidence(value) { return typeof value === "number" ? `${Math.round(value * 100)}%` : "–"; }
+function formatPercent(value) { return typeof value === "number" ? `${Math.round(value)}%` : "–"; }
 function formatTime(value) {
   if (!value) return "–";
   const date = new Date((value > 1e12 ? value : value * 1000));

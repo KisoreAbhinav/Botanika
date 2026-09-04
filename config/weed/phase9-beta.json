@@ -1,0 +1,15 @@
+{
+  "format": "botanika-weed-detector-1",
+  "model_name": "Botanika supported-crop weed beta",
+  "version": "phase9-beta-0.1",
+  "region": "India — pilot crop plots only",
+  "crop_context": "Pilot crop context must be confirmed by the operator before field use",
+  "source": "Operator-supplied independent weed dataset; no runtime download",
+  "license": "To be verified with the dataset release before deployment",
+  "labels": ["parthenium", "nutsedge", "barnyard grass"],
+  "artifact": "../../models/weed_detector/botanika-weeds-v1.onnx",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "input_size": [640, 640],
+  "has_objectness": false,
+  "output_layout": "features_first"
+}

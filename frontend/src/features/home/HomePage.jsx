@@ -6,6 +6,7 @@ export function HomePage({ onNavigate, capabilities }) {
   const classifierReady = stateOf(capabilities, "classifier") === "ready";
   const knowledge = stateOf(capabilities, "knowledge");
   const storage = stateOf(capabilities, "storage");
+  const weeds = stateOf(capabilities, "weeds");
 
   return (
     <div className="home">
@@ -41,14 +42,16 @@ export function HomePage({ onNavigate, capabilities }) {
         <button
           type="button"
           className="home-card"
-          disabled
-          aria-label="Weed Detection, beta, not available yet"
+          onClick={() => onNavigate("weeds")}
+          disabled={weeds !== "ready"}
+          aria-label={weeds === "ready" ? "Open Weed Detection Beta" : "Weed Detection Beta unavailable"}
+          title={weeds === "ready" ? undefined : "Weed Detection Beta is unavailable until its detector is installed."}
         >
           <span className="card-number">03 / WEEDS</span>
           <span className="card-label">
             Weed Detection <span className="badge">Beta</span>
           </span>
-          <p className="card-desc">Unavailable in this build.</p>
+          <p className="card-desc">{weeds === "ready" ? "Analyze supported crop frames locally." : "Beta contract is installed; detector asset is unavailable."}</p>
           <span className="card-icon">
             <WeedIcon />
           </span>
@@ -67,6 +70,7 @@ export function HomePage({ onNavigate, capabilities }) {
         <StatusItem label="Models" state={models} />
         <StatusItem label="Knowledge" state={knowledge} />
         <StatusItem label="Storage" state={storage} />
+        <StatusItem label="Weeds" state={weeds} />
       </div>
     </div>
   );

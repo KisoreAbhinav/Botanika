@@ -40,6 +40,14 @@ class AsgiTestClient:
             transport=httpx2.ASGITransport(app=app),
             base_url="http://testserver",
         )
+        self.remote = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app, client=("192.168.50.20", 41000)),
+            base_url="http://192.168.50.1",
+        )
+        self.stranger = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app, client=("192.168.50.21", 41001)),
+            base_url="http://192.168.50.1",
+        )
 
     def get(self, path: str, **kwargs):
         return self.loop.run_until_complete(self.client.get(path, **kwargs))
@@ -53,7 +61,21 @@ class AsgiTestClient:
     def patch(self, path: str, **kwargs):
         return self.loop.run_until_complete(self.client.patch(path, **kwargs))
 
+    def remote_get(self, path: str, **kwargs):
+        return self.loop.run_until_complete(self.remote.get(path, **kwargs))
+
+    def remote_post(self, path: str, **kwargs):
+        return self.loop.run_until_complete(self.remote.post(path, **kwargs))
+
+    def stranger_get(self, path: str, **kwargs):
+        return self.loop.run_until_complete(self.stranger.get(path, **kwargs))
+
+    def stranger_post(self, path: str, **kwargs):
+        return self.loop.run_until_complete(self.stranger.post(path, **kwargs))
+
     def close(self) -> None:
+        self.loop.run_until_complete(self.stranger.aclose())
+        self.loop.run_until_complete(self.remote.aclose())
         self.loop.run_until_complete(self.client.aclose())
         self.loop.run_until_complete(self.lifespan.__aexit__(None, None, None))
         self.loop.close()
@@ -224,6 +246,222 @@ class Phase5ApiContractTest(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Botanika", response.text)
+
+    def test_phase7_network_status_and_landing_page_are_same_origin(self):
+        status = self.client.get("/api/v1/network/status")
+        self.assertEqual(status.status_code, 200)
+        body = status.json()
+        self.assertEqual(body["status"]["state"], "disabled")
+        self.assertEqual(body["configuration"]["hostname"], "botanika.home.arpa")
+
+        capabilities = self.client.get("/api/v1/capabilities").json()
+        self.assertIn("network", capabilities)
+        self.assertFalse(capabilities["network"]["available"])
+
+        landing = self.client.get("/connect")
+        self.assertEqual(landing.status_code, 200)
+        self.assertIn("SOLO mode is active", landing.text)
+        self.assertIn("Open Botanika", landing.text)
+
+    def test_phase8_mode_pairing_single_controller_and_crop_only_upload(self):
+        solo = self.client.get("/api/v1/mode/status")
+        self.assertEqual(solo.status_code, 200)
+        self.assertEqual(solo.json()["mode"], "SOLO")
+
+        self.assertEqual(solo.json()["client_role"], "operator")
+        self.assertEqual(
+            self.client.remote_get("/api/v1/library/records").status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.remote_post("/api/v1/mode/toggle").status_code,
+            401,
+        )
+
+        unpaired = self.client.post("/api/v1/mode/toggle")
+        self.assertEqual(unpaired.status_code, 200)
+        unpaired_body = unpaired.json()
+        self.assertEqual(unpaired_body["mode"], "NETWORKED_UNPAIRED")
+        code = unpaired_body["pairing"]["code"]
+
+        remote_status = self.client.remote_get("/api/v1/mode/status")
+        self.assertEqual(remote_status.status_code, 200)
+        self.assertEqual(remote_status.json()["client_role"], "remote")
+        self.assertNotIn("code", remote_status.json()["pairing"])
+        self.assertIsNone(remote_status.json()["pairing_code"])
+        remote_landing = self.client.remote_get("/connect")
+        self.assertNotIn(code, remote_landing.text)
+        self.assertEqual(
+            self.client.remote_post("/api/v1/mode/takeover").status_code,
+            401,
+        )
+
+        paired = self.client.remote_post(
+            "/api/v1/mode/pair",
+            json={"code": code, "device_name": "Test phone", "client_id": "test-client"},
+        )
+        self.assertEqual(paired.status_code, 200)
+        token = paired.json()["session_token"]
+        self.assertEqual(paired.json()["status"]["controller_count"], 1)
+        self.assertNotIn("session_token", paired.json()["status"])
+        self.assertEqual(
+            self.client.remote_post("/api/v1/mode/takeover").status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.remote_post("/api/v1/scan/manual-capture").status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.stranger_get("/api/v1/library/records").status_code,
+            401,
+        )
+        self.assertEqual(
+            self.client.remote_get("/api/v1/library/records").status_code,
+            200,
+        )
+
+        second = self.client.post(
+            "/api/v1/mode/pair",
+            json={"code": code, "device_name": "Second phone"},
+        )
+        self.assertEqual(second.status_code, 422)
+        self.assertIn("another controller", second.json()["detail"])
+
+        unauthorized = self.client.post(
+            "/api/v1/mode/controller/crop",
+            files={"file": ("crop.png", b"not an image", "image/png")},
+        )
+        self.assertEqual(unauthorized.status_code, 401)
+
+        import cv2
+        import hashlib
+        import numpy as np
+
+        image = np.full((48, 64, 3), 120, dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", image)
+        self.assertTrue(ok)
+        payload = encoded.tobytes()
+        crop = self.client.remote_post(
+            "/api/v1/mode/controller/crop",
+            files={"file": ("crop.png", payload, "image/png")},
+            data={
+                "crop_hash": hashlib.sha256(payload).hexdigest(),
+                "width": "64",
+                "height": "48",
+                "client_request_id": "integration-crop",
+            },
+        )
+        self.assertEqual(crop.status_code, 200)
+        self.assertEqual(crop.json()["crop"]["sha256"], hashlib.sha256(payload).hexdigest())
+        self.assertEqual(crop.json()["crop"]["width"], 64)
+        self.assertEqual(crop.json()["crop"]["height"], 48)
+        self.assertEqual(crop.json()["request_id"], "integration-crop")
+
+        mismatch = self.client.remote_post(
+            "/api/v1/mode/controller/crop",
+            files={"file": ("crop.png", payload, "image/png")},
+            data={"crop_hash": "0" * 64},
+        )
+        self.assertEqual(mismatch.status_code, 422)
+        self.assertIn("hash", mismatch.json()["detail"])
+
+        classification = crop.json()["classification"]
+        self.assertEqual(classification["result"]["status"], "accepted")
+        stale_save = self.client.remote_post(
+            "/api/v1/library/records",
+            json={"request_id": "wrong-request", "crop_hash": classification["crop_hash"]},
+        )
+        self.assertEqual(stale_save.status_code, 422)
+        saved = self.client.remote_post(
+            "/api/v1/library/records",
+            json={
+                "request_id": classification["request_id"],
+                "crop_hash": classification["crop_hash"],
+                "position": {
+                    "latitude": 19.076,
+                    "longitude": 72.8777,
+                    "accuracy_m": 12.0,
+                    "timestamp": 1788364800.0,
+                    "source": "paired-browser-geolocation",
+                },
+            },
+        )
+        self.assertEqual(saved.status_code, 200)
+        crop_url = saved.json()["record"]["crop_url"]
+        self.assertEqual(self.client.remote_get(crop_url).status_code, 200)
+        self.assertEqual(self.client.stranger_get(crop_url).status_code, 401)
+
+        second_image = np.full((48, 64, 3), 150, dtype=np.uint8)
+        second_ok, second_encoded = cv2.imencode(".png", second_image)
+        self.assertTrue(second_ok)
+        second_payload = second_encoded.tobytes()
+        second_crop = self.client.remote_post(
+            "/api/v1/mode/controller/crop",
+            files={"file": ("crop.png", second_payload, "image/png")},
+            data={
+                "crop_hash": hashlib.sha256(second_payload).hexdigest(),
+                "width": "64",
+                "height": "48",
+                "client_request_id": "integration-crop-2",
+            },
+        )
+        self.assertEqual(second_crop.status_code, 200)
+        second_classification = second_crop.json()["classification"]
+        second_save = self.client.remote_post(
+            "/api/v1/library/records",
+            json={
+                "request_id": second_classification["request_id"],
+                "crop_hash": second_classification["crop_hash"],
+            },
+        )
+        self.assertEqual(second_save.status_code, 200)
+        self.assertEqual(self.client.remote_get("/api/v1/library/records").json()["total"], 2)
+
+        disconnected = self.client.remote_post(
+            "/api/v1/mode/disconnect",
+        )
+        self.assertEqual(disconnected.status_code, 200)
+        self.assertEqual(disconnected.json()["mode"], "NETWORKED_UNPAIRED")
+        self.assertNotIn("code", disconnected.json()["pairing"])
+        second_code = self.client.get("/api/v1/mode/status").json()["pairing"]["code"]
+        paired_again = self.client.remote_post(
+            "/api/v1/mode/pair",
+            json={"code": second_code, "device_name": "Second phone"},
+        )
+        self.assertEqual(paired_again.status_code, 200)
+        takeover = self.client.post("/api/v1/mode/takeover")
+        self.assertEqual(takeover.status_code, 200)
+        self.assertEqual(takeover.json()["mode"], "NETWORKED_UNPAIRED")
+        stale_heartbeat = self.client.post(
+            "/api/v1/mode/heartbeat",
+            headers={"X-Botanika-Controller-Token": paired_again.json()["session_token"]},
+        )
+        self.assertEqual(stale_heartbeat.status_code, 401)
+
+        solo = self.client.post("/api/v1/mode/solo")
+        self.assertEqual(solo.status_code, 200)
+        self.assertEqual(solo.json()["mode"], "SOLO")
+
+    def test_cloudflare_proxy_headers_keep_tunnel_callers_remote(self):
+        # ASGITransport's default peer is loopback, matching cloudflared's
+        # local hop. Valid Cloudflare markers must still make this remote:
+        # status redacts the invitation and operator POSTs fail.
+        self.assertEqual(self.client.post("/api/v1/mode/toggle").status_code, 200)
+        headers = {
+            "CF-Connecting-IP": "198.51.100.22",
+            "CF-Ray": "0123456789abcdef-SJC",
+        }
+        status = self.client.get("/api/v1/mode/status", headers=headers)
+        self.assertEqual(status.status_code, 200)
+        body = status.json()
+        self.assertEqual(body["client_role"], "remote")
+        self.assertNotIn("code", body["pairing"])
+        self.assertIsNone(body["pairing_code"])
+        takeover = self.client.post("/api/v1/mode/takeover", headers=headers)
+        self.assertEqual(takeover.status_code, 401)
+        network = self.client.get("/api/v1/network/status", headers=headers)
+        self.assertEqual(network.status_code, 401)
 
 
 class Phase6ApiContractTest(unittest.TestCase):

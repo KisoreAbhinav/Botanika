@@ -1,0 +1,15 @@
+{
+  "model_name": "Botanika local quantized GGUF",
+  "artifact": "models/llm/botanika.gguf",
+  "sha256": "REPLACE_WITH_VERIFIED_SHA256",
+  "runtime": "llama.cpp",
+  "quantization": "Q4_K_M or a measured Pi-compatible equivalent",
+  "context_tokens": 2048,
+  "threads": 4,
+  "batch_size": 128,
+  "temperature": 0.1,
+  "max_tokens": 256,
+  "timeout_seconds": 20,
+  "download_policy": "manual and offline; the application never downloads model weights",
+  "grounding_policy": "Every accepted factual statement must cite a reviewed local knowledge chunk ID."
+}

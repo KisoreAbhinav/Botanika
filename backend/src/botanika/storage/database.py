@@ -1,4 +1,4 @@
-"""Shared SQLite lifecycle and schema migrations for the Phase 6 runtime.
+"""Shared SQLite lifecycle and schema migrations for the Botanika runtime.
 
 The application deliberately keeps SQLite small and boring.  A single
 connection is used by each repository and all writes are serialized through a
@@ -16,7 +16,7 @@ import threading
 from typing import Iterator
 
 
-DATABASE_SCHEMA_VERSION = 2
+DATABASE_SCHEMA_VERSION = 4
 
 
 def utc_now() -> str:
@@ -288,6 +288,101 @@ class SQLiteDatabase:
                 connection.execute(
                     "INSERT INTO botanika_migrations(version, applied_at) VALUES (?, ?)",
                     (2, utc_now()),
+                )
+            if 3 not in applied:
+                connection.executescript(
+                    """
+                    -- The vector index is deliberately compact and local.  The
+                    -- embedding bytes are deterministic, versioned, and tied
+                    -- to each reviewed knowledge chunk checksum.
+                    CREATE TABLE IF NOT EXISTS knowledge_embeddings (
+                        chunk_id TEXT PRIMARY KEY REFERENCES knowledge_chunks(chunk_id) ON DELETE CASCADE,
+                        embedding_version TEXT NOT NULL,
+                        dimensions INTEGER NOT NULL CHECK (dimensions > 0),
+                        vector BLOB NOT NULL,
+                        checksum TEXT NOT NULL,
+                        created_at TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_knowledge_embeddings_version
+                        ON knowledge_embeddings(embedding_version);
+
+                    CREATE TABLE IF NOT EXISTS knowledge_ingestion (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS weed_runs (
+                        run_id TEXT PRIMARY KEY,
+                        observed_at REAL NOT NULL,
+                        detector_version TEXT NOT NULL,
+                        crop_context TEXT NOT NULL,
+                        position_available INTEGER NOT NULL DEFAULT 0 CHECK (position_available IN (0, 1)),
+                        position_message TEXT NOT NULL,
+                        detections_json TEXT NOT NULL DEFAULT '[]',
+                        model_metadata TEXT NOT NULL DEFAULT '{}'
+                    );
+                    CREATE TABLE IF NOT EXISTS weed_observations (
+                        observation_id TEXT PRIMARY KEY,
+                        latitude REAL,
+                        longitude REAL,
+                        accuracy_m REAL,
+                        position_source TEXT,
+                        observed_at REAL NOT NULL,
+                        detector_version TEXT NOT NULL,
+                        weed_class TEXT NOT NULL,
+                        confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1)
+                    );
+                    """
+                )
+                weed_columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(weed_observations)").fetchall()
+                }
+                for column, definition in (
+                    ("run_id", "TEXT"),
+                    ("model_metadata", "TEXT NOT NULL DEFAULT '{}'"),
+                    ("position_timestamp", "REAL"),
+                ):
+                    if column not in weed_columns:
+                        connection.execute(
+                            f"ALTER TABLE weed_observations ADD COLUMN {column} {definition}"
+                        )
+                run_columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(weed_runs)").fetchall()
+                }
+                for column, definition in (
+                    ("detections_json", "TEXT NOT NULL DEFAULT '[]'"),
+                    ("model_metadata", "TEXT NOT NULL DEFAULT '{}'"),
+                ):
+                    if column not in run_columns:
+                        connection.execute(
+                            f"ALTER TABLE weed_runs ADD COLUMN {column} {definition}"
+                        )
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_weed_observations_run "
+                    "ON weed_observations(run_id)"
+                )
+                connection.execute(
+                    "INSERT INTO botanika_migrations(version, applied_at) VALUES (?, ?)",
+                    (3, utc_now()),
+                )
+            if 4 not in applied:
+                run_columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(weed_runs)").fetchall()
+                }
+                for column, definition in (
+                    ("detections_json", "TEXT NOT NULL DEFAULT '[]'"),
+                    ("model_metadata", "TEXT NOT NULL DEFAULT '{}'"),
+                ):
+                    if column not in run_columns:
+                        connection.execute(
+                            f"ALTER TABLE weed_runs ADD COLUMN {column} {definition}"
+                        )
+                connection.execute(
+                    "INSERT INTO botanika_migrations(version, applied_at) VALUES (?, ?)",
+                    (4, utc_now()),
                 )
             connection.commit()
 

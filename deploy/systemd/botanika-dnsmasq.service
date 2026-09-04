@@ -1,0 +1,16 @@
+[Unit]
+Description=Botanika private DHCP and local DNS
+After=network-pre.target
+Wants=network-pre.target
+PartOf=botanika-access-point.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/etc/botanika/dnsmasq.conf --pid-file=/run/botanika-dnsmasq.pid
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

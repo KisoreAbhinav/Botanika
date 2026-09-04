@@ -35,19 +35,19 @@ export function ScanSidePanel({ snapshot, saveState }) {
             confidence {pct(result.confidence)} · {classification.duration_ms?.toFixed?.(0) ?? "–"} ms
           </div>
           {result.is_stub && <span className="demo-tag">Demo data — not an identification</span>}
-          <dl style={{ margin: "6px 0 0" }}>
+          <dl className="metric-list result-metrics">
             <Metric label="Family" value={result.family} />
             <Metric label="Category" value={result.category} />
             <Metric label="Conservation" value={result.conservation_status} />
           </dl>
-          {result.short_notes && <p style={{ fontSize: 13 }}>{result.short_notes}</p>}
+          {result.short_notes && <p className="side-copy">{result.short_notes}</p>}
           {result.sources && result.sources.length > 0 && (
-            <p style={{ fontSize: 12, color: "var(--faint)" }}>
+            <p className="side-source">
               Source: {result.sources.join("; ")}
             </p>
           )}
           {saveState === "saving" && <p>Saving…</p>}
-          {saveState === "saved" && <p style={{ color: "var(--green)" }}>Saved to library.</p>}
+          {saveState === "saved" && <p className="side-copy side-copy-success">Saved to library.</p>}
         </div>
       </aside>
     );
@@ -66,15 +66,15 @@ export function ScanSidePanel({ snapshot, saveState }) {
             <div className="suggestion-row" key={suggestion.scientific_name}>
               <span>
                 {suggestion.common_name}
-                <div className="sci" style={{ fontStyle: "italic", color: "var(--muted)" }}>
+                <div className="sci">
                   {suggestion.scientific_name}
                 </div>
               </span>
               <span className="mono">{pct(suggestion.confidence)}</span>
             </div>
           ))}
-          {result.short_notes && <p style={{ fontSize: 13 }}>{result.short_notes}</p>}
-          <p style={{ fontSize: 13 }}>
+          {result.short_notes && <p className="side-copy">{result.short_notes}</p>}
+          <p className="side-copy">
             Try another angle — a clearer leaf, flower, fruit, bark, or whole-plant view.
           </p>
         </div>
@@ -111,7 +111,7 @@ function QualityPanel({ snapshot }) {
         {!snapshot && <p>Connecting to the scan service…</p>}
         {snapshot && snapshot.error && <p className="scan-error">{snapshot.error}</p>}
         {snapshot && (
-          <dl style={{ margin: 0 }}>
+          <dl className="metric-list">
             <Metric label="Target" value={targetType} />
             <Metric
               label="Stability"
@@ -135,7 +135,7 @@ function QualityPanel({ snapshot }) {
             ))}
           </ul>
         )}
-        {quality && quality.hint && <p style={{ fontSize: 13 }}>{quality.hint}</p>}
+        {quality && quality.hint && <p className="side-copy">{quality.hint}</p>}
       </div>
     </aside>
   );

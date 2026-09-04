@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -136,6 +137,26 @@ class ScanServiceTests(unittest.TestCase):
         )
         FakeCamera.active = 0
         FakeCamera.max_active = 0
+
+    def test_normal_runtime_keeps_camera_owner_default_factory(self):
+        service = ScanService(self.settings, detector=FakeDetector())
+        with mock.patch("botanika.vision.services.scan.CameraOwner") as owner_type:
+            owner = owner_type.return_value
+            service._open_resources()
+
+        owner_type.assert_called_once_with(
+            config=mock.ANY,
+            clock=mock.ANY,
+        )
+        owner.open.assert_called_once_with()
+
+    def test_closed_camera_does_not_expose_a_stale_latest_frame(self):
+        service = ScanService(self.settings, detector=FakeDetector())
+        service._frame = sharp_frame()
+
+        service._close_resources()
+
+        self.assertIsNone(service.latest_frame())
 
     def test_preview_sequence_advances_for_each_camera_frame(self):
         service = ScanService(self.settings, detector=FakeDetector())

@@ -1,0 +1,236 @@
+{
+  "catalog_digest": "0419e56963ecf8f0cba8ca2cd57de2aeabaf4b977e7ac62790c528771f2907f4",
+  "catalog_id": "botanika-india-starter",
+  "catalog_region": "India \u2014 starter garden and field-edge catalog",
+  "catalog_version": "2026.09.2",
+  "chunks": [
+    {
+      "checksum": "42e5fd28aa0b2d8ee29169436ee15ebf44d6ada4d3326ec512a3420ef8f1c798",
+      "chunk_id": "in:artocarpus-heterophyllus:kew-artocarpus-heterophyllus-backbone:42e5fd28aa0b2d8e",
+      "chunk_index": 0,
+      "source_id": "kew-artocarpus-heterophyllus-backbone",
+      "species_id": "in:artocarpus-heterophyllus"
+    },
+    {
+      "checksum": "340dc3abec6b8d1e5538a9e0f04e91793b685d7186a1b73e1c3ee3e8bd1d7eda",
+      "chunk_id": "in:artocarpus-heterophyllus:kew-artocarpus-heterophyllus-ftea:340dc3abec6b8d1e",
+      "chunk_index": 0,
+      "source_id": "kew-artocarpus-heterophyllus-ftea",
+      "species_id": "in:artocarpus-heterophyllus"
+    },
+    {
+      "checksum": "4de0bc7d22d0e1e859d33e51901f62dfccdd3cb6acbbafd8d8268895012a880c",
+      "chunk_id": "in:ficus-benghalensis:kew-ficus-benghalensis-profile:4de0bc7d22d0e1e8",
+      "chunk_index": 0,
+      "source_id": "kew-ficus-benghalensis-profile",
+      "species_id": "in:ficus-benghalensis"
+    },
+    {
+      "checksum": "914aa9d9132d4aa34dab47f2c8d7a01d08d181eb66e6aa65f92930aa27fd7f0f",
+      "chunk_id": "in:ficus-benghalensis:kew-ficus-benghalensis-profile:914aa9d9132d4aa3",
+      "chunk_index": 1,
+      "source_id": "kew-ficus-benghalensis-profile",
+      "species_id": "in:ficus-benghalensis"
+    },
+    {
+      "checksum": "8fb98d709c19e0d62d0996ea5ac62ee93c34be846bdb81f2212a99dc153faa2e",
+      "chunk_id": "in:ficus-religiosa:kew-ficus-religiosa-backbone:8fb98d709c19e0d6",
+      "chunk_index": 0,
+      "source_id": "kew-ficus-religiosa-backbone",
+      "species_id": "in:ficus-religiosa"
+    },
+    {
+      "checksum": "b8114da41446a7bec965d2fc9a0053c74b1c8120653e000ec101cb8d7514e714",
+      "chunk_id": "in:ficus-religiosa:kew-ficus-religiosa-backbone:b8114da41446a7be",
+      "chunk_index": 1,
+      "source_id": "kew-ficus-religiosa-backbone",
+      "species_id": "in:ficus-religiosa"
+    },
+    {
+      "checksum": "386cb77832e01f985d7da57be47eaabc6f78e790b9aeaf6884aaf7cf6036b08d",
+      "chunk_id": "in:jasminum-sambac:kew-jasminum-sambac-backbone:386cb77832e01f98",
+      "chunk_index": 0,
+      "source_id": "kew-jasminum-sambac-backbone",
+      "species_id": "in:jasminum-sambac"
+    },
+    {
+      "checksum": "7819878e6747a9031bd26bc5147ee4b03f6277f0e88d87e28e60c934e4cac4db",
+      "chunk_id": "in:jasminum-sambac:kew-jasminum-sambac-backbone:7819878e6747a903",
+      "chunk_index": 1,
+      "source_id": "kew-jasminum-sambac-backbone",
+      "species_id": "in:jasminum-sambac"
+    },
+    {
+      "checksum": "a33b5320887a70bf6568a5d6bd152f98d2514470c42913aa55b39c567f6ba472",
+      "chunk_id": "in:moringa-oleifera:iucn-moringa-oleifera:a33b5320887a70bf",
+      "chunk_index": 0,
+      "source_id": "iucn-moringa-oleifera",
+      "species_id": "in:moringa-oleifera"
+    },
+    {
+      "checksum": "a595775300e4598321147ff2283fbc8e0d3b0c20e8e7154966d04487955de83a",
+      "chunk_id": "in:moringa-oleifera:kew-moringa-oleifera-backbone:a595775300e45983",
+      "chunk_index": 0,
+      "source_id": "kew-moringa-oleifera-backbone",
+      "species_id": "in:moringa-oleifera"
+    },
+    {
+      "checksum": "aed2a83d90098cc2cd9a9e4a48c52d3cceb088e4f4816eab6e708bd1ca45e165",
+      "chunk_id": "in:ocimum-tenuiflorum:kew-ocimum-tenuiflorum-profile:aed2a83d90098cc2",
+      "chunk_index": 0,
+      "source_id": "kew-ocimum-tenuiflorum-profile",
+      "species_id": "in:ocimum-tenuiflorum"
+    },
+    {
+      "checksum": "e3509e66542d20d80a6bdc0a5436e4c99429e9a44e8791a8aa5b8269ac126d70",
+      "chunk_id": "in:ocimum-tenuiflorum:kew-ocimum-tenuiflorum-profile:e3509e66542d20d8",
+      "chunk_index": 1,
+      "source_id": "kew-ocimum-tenuiflorum-profile",
+      "species_id": "in:ocimum-tenuiflorum"
+    },
+    {
+      "checksum": "51ed952c39bcfbb3d20dcc9d2cab7c323a41588a5f30b74d21042befbe75b95c",
+      "chunk_id": "in:syzygium-microphyllum:iucn-syzygium-microphyllum:51ed952c39bcfbb3",
+      "chunk_index": 0,
+      "source_id": "iucn-syzygium-microphyllum",
+      "species_id": "in:syzygium-microphyllum"
+    },
+    {
+      "checksum": "8c3a3e0f54c059f97d08ed8f15564131a6816edfe799da2c69d83184b50e2ba3",
+      "chunk_id": "in:syzygium-microphyllum:kew-syzygium-microphyllum-backbone:8c3a3e0f54c059f9",
+      "chunk_index": 0,
+      "source_id": "kew-syzygium-microphyllum-backbone",
+      "species_id": "in:syzygium-microphyllum"
+    }
+  ],
+  "embedding": {
+    "algorithm": "sha256-signed-token-and-bigram-hashing",
+    "dimensions": 256,
+    "version": "hashing-lexical-v1"
+  },
+  "format": "botanika-knowledge-1",
+  "manifest_digest": "a52ee3f215f03104893118453ce94995ea76a1ef2d2b27b5f417ef99450e6bbe",
+  "sources": [
+    {
+      "checksum": null,
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "publisher": "International Union for Conservation of Nature",
+      "retrieved_at": "2026-09-02",
+      "source_id": "iucn-moringa-oleifera",
+      "source_type": "conservation-assessment",
+      "title": "Moringa oleifera assessment \u2014 IUCN Red List",
+      "url": "https://www.iucnredlist.org/species/61890232/61890241"
+    },
+    {
+      "checksum": null,
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "publisher": "International Union for Conservation of Nature",
+      "retrieved_at": "2026-09-02",
+      "source_id": "iucn-syzygium-microphyllum",
+      "source_type": "conservation-assessment",
+      "title": "Syzygium microphyllum assessment \u2014 IUCN Red List",
+      "url": "https://www.iucnredlist.org/species/37626/10067599"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-artocarpus-heterophyllus-backbone",
+      "source_type": "taxonomy-and-distribution",
+      "title": "Artocarpus heterophyllus \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY-NC-SA 3.0 (Flora of Tropical East Africa)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-artocarpus-heterophyllus-ftea",
+      "source_type": "flora-description",
+      "title": "Artocarpus heterophyllus \u2014 Flora of Tropical East Africa via POWO",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1/general-information"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-ficus-benghalensis-profile",
+      "source_type": "species-profile",
+      "title": "Ficus benghalensis \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:852482-1/general-information"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-ficus-religiosa-backbone",
+      "source_type": "taxonomy-and-ecology",
+      "title": "Ficus religiosa \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:853563-1/general-information"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-jasminum-sambac-backbone",
+      "source_type": "taxonomy-and-ecology",
+      "title": "Jasminum sambac \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:609755-1"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-moringa-oleifera-backbone",
+      "source_type": "taxonomy-and-ecology",
+      "title": "Moringa oleifera \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:584736-1"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-ocimum-tenuiflorum-profile",
+      "source_type": "species-profile",
+      "title": "Ocimum tenuiflorum \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:453130-1/general-information"
+    },
+    {
+      "checksum": null,
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "retrieved_at": "2026-09-02",
+      "source_id": "kew-syzygium-microphyllum-backbone",
+      "source_type": "taxonomy-and-ecology",
+      "title": "Syzygium microphyllum \u2014 Plants of the World Online",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:601940-1/general-information"
+    },
+    {
+      "checksum": null,
+      "license": "Per-file CC BY-SA, CC BY, or public-domain terms; verify before ingesting an asset",
+      "license_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+      "publisher": "Wikimedia Foundation contributors",
+      "retrieved_at": "2026-09-02",
+      "source_id": "wikimedia-commons",
+      "source_type": "image-reference",
+      "title": "Wikimedia Commons image references",
+      "url": "https://commons.wikimedia.org/"
+    }
+  ]
+}

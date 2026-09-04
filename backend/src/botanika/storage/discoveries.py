@@ -368,6 +368,101 @@ class DiscoveryLibrary:
             ).fetchall()
         return [str(row[0]) for row in rows]
 
+    def progress(self, catalog_species: Iterable[Any]) -> dict[str, Any]:
+        """Return reproducible local discovery progress against the catalog."""
+
+        catalog = [_catalog_value(item) for item in catalog_species]
+        catalog = [item for item in catalog if item["species_id"]]
+        catalog_ids = {item["species_id"] for item in catalog}
+        records = self.list_records()
+        counts: dict[str, int] = {}
+        for record in records:
+            counts[record.species_id] = counts.get(record.species_id, 0) + 1
+        supported = len(catalog_ids)
+        discovered = sum(1 for species_id in counts if species_id in catalog_ids)
+        repeat_species = sum(1 for count in counts.values() if count >= 2)
+        category_totals: dict[str, int] = {}
+        category_discovered: dict[str, int] = {}
+        for item in catalog:
+            category = item["category"] or "Uncategorized"
+            category_totals[category] = category_totals.get(category, 0) + 1
+            if item["species_id"] in counts:
+                category_discovered[category] = category_discovered.get(category, 0) + 1
+        category_progress = []
+        for category in sorted(category_totals, key=str.casefold):
+            total = category_totals[category]
+            found = category_discovered.get(category, 0)
+            category_progress.append(
+                {
+                    "category": category,
+                    "supported_species": total,
+                    "discovered_species": found,
+                    "coverage_percent": _percent(found, total),
+                }
+            )
+        indicators = [
+            {
+                "species_id": species_id,
+                "observation_count": counts[species_id],
+                "first_discovery": counts[species_id] == 1,
+                "repeat_discovery": counts[species_id] >= 2,
+            }
+            for species_id in sorted(counts)
+            if species_id in catalog_ids
+        ]
+        half_target = max(1, math.ceil(supported / 2)) if supported else 0
+        milestones = [
+            {"id": "first-discovery", "label": "First discovery", "target": 1, "complete": discovered >= 1},
+            {
+                "id": "three-species",
+                "label": "Three species",
+                "target": min(3, supported),
+                "complete": discovered >= min(3, supported) if supported else False,
+            },
+            {
+                "id": "half-catalog",
+                "label": "Half the catalog",
+                "target": half_target,
+                "complete": discovered >= half_target if half_target else False,
+            },
+            {"id": "repeat-discovery", "label": "Repeat a species", "target": 2, "complete": repeat_species >= 1},
+            {
+                "id": "catalog-complete",
+                "label": "Catalog complete",
+                "target": supported,
+                "complete": supported > 0 and discovered >= supported,
+            },
+        ]
+        return {
+            "supported_species": supported,
+            "discovered_species": discovered,
+            "observation_count": len(records),
+            "coverage_percent": _percent(discovered, supported),
+            "category_progress": category_progress,
+            "discovery_indicators": indicators,
+            "first_discoveries": sum(1 for item in indicators if item["first_discovery"]),
+            "repeat_discoveries": repeat_species,
+            "milestones": milestones,
+            "source": "active local library rows",
+        }
+
+    def aggregate_summary(self, catalog_species: Iterable[Any]) -> dict[str, Any]:
+        """Return anonymous aggregate counts without exporting observation details."""
+
+        progress = self.progress(catalog_species)
+        return {
+            "anonymous": True,
+            "scope": "this-device",
+            "transport": "local-only",
+            "personal_identifiers_included": False,
+            "discovered_species": progress["discovered_species"],
+            "observation_count": progress["observation_count"],
+            "coverage_percent": progress["coverage_percent"],
+            "category_progress": progress["category_progress"],
+            "first_discoveries": progress["first_discoveries"],
+            "repeat_discoveries": progress["repeat_discoveries"],
+        }
+
     def get(self, record_id: str) -> LibraryRecord | None:
         records = self.list_records()
         return next((record for record in records if record.id == record_id), None)
@@ -805,6 +900,23 @@ class DiscoveryLibrary:
         if path.is_relative_to(self.media_dir):
             path.unlink(missing_ok=True)
 
+def _catalog_value(item: Any) -> dict[str, str]:
+    if isinstance(item, dict):
+        return {
+            "species_id": str(item.get("species_id") or "").strip(),
+            "category": str(item.get("category") or "").strip(),
+        }
+    return {
+        "species_id": str(getattr(item, "species_id", "") or "").strip(),
+        "category": str(getattr(item, "category", "") or "").strip(),
+    }
+
+
+def _percent(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return round(100.0 * numerator / denominator, 2)
+
 
 def _insert_position(connection: sqlite3.Connection, observation_id: str, position: dict[str, Any], observed_at: float) -> None:
     try:
@@ -812,6 +924,8 @@ def _insert_position(connection: sqlite3.Connection, observation_id: str, positi
         longitude = float(position["longitude"])
         accuracy = float(position["accuracy_m"])
         source = str(position["source"]).strip()
+        raw_timestamp = position.get("timestamp", observed_at)
+        captured_at = float(observed_at if raw_timestamp is None else raw_timestamp)
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("position requires latitude, longitude, accuracy_m, and source") from exc
     if not math.isfinite(latitude) or not -90 <= latitude <= 90:
@@ -820,13 +934,15 @@ def _insert_position(connection: sqlite3.Connection, observation_id: str, positi
         raise ValueError("position longitude is out of range")
     if not math.isfinite(accuracy) or accuracy < 0 or not source:
         raise ValueError("position accuracy/source is invalid")
+    if not math.isfinite(captured_at) or captured_at < 0:
+        raise ValueError("position timestamp is invalid")
     connection.execute(
         """
         INSERT INTO positioning_samples(
             sample_id, observation_id, latitude, longitude, accuracy_m, source, captured_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (uuid.uuid4().hex, observation_id, latitude, longitude, accuracy, source, observed_at),
+        (uuid.uuid4().hex, observation_id, latitude, longitude, accuracy, source, captured_at),
     )
 
 

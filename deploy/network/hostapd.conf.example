@@ -1,0 +1,19 @@
+# Botanika Phase 7 fallback hostapd configuration.
+# The operator tool renders the real passphrase into /run/botanika/hostapd.conf
+# at service start. Do not put a real passphrase in this tracked template.
+interface=wlan0
+driver=nl80211
+ssid=Botanika
+country_code=IN
+hw_mode=g
+channel=6
+ieee80211n=1
+wmm_enabled=1
+auth_algs=1
+wpa=2
+wpa_key_mgmt=WPA-PSK SAE
+rsn_pairwise=CCMP
+ieee80211w=1
+sae_require_mfp=0
+sae_pwe=1
+# wpa_passphrase is inserted from BOTANIKA_AP_PASSPHRASE at runtime.

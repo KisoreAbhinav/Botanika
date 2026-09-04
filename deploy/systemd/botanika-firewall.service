@@ -1,0 +1,18 @@
+[Unit]
+Description=Botanika AP-only firewall restrictions
+Before=botanika-dnsmasq.service
+After=nftables.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/botanika/botanika.env
+WorkingDirectory=/opt/botanika
+ExecStartPre=/usr/bin/install -d -m 0755 /run/botanika
+ExecStart=/usr/sbin/nft -f /etc/botanika/nftables.conf
+ExecStartPost=/usr/bin/python3 /opt/botanika/tools/manage_access_point.py mark-firewall --output /run/botanika/firewall.ready --firewall-config /etc/botanika/nftables.conf
+ExecStop=-/usr/sbin/nft delete table inet botanika
+ExecStopPost=-/usr/bin/rm -f /run/botanika/firewall.ready
+
+[Install]
+WantedBy=multi-user.target

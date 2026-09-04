@@ -11,7 +11,9 @@ Botanika/
 │   └── src/botanika/
 │       ├── api/                 # Local API adapters and schemas
 │       ├── core/                # Settings, lifecycle, errors, capabilities
-│       ├── hardware/            # Camera/audio/display adapters (future)
+│       ├── network/             # Private AP plus optional Cloudflare Quick Tunnel
+│       ├── mode/                # Phase 8 SOLO/NETWORKED pairing lease state
+│       ├── hardware/            # Camera/audio/display/GPIO adapters
 │       ├── vision/
 │       │   ├── detection/       # Plant/organ detector
 │       │   ├── quality/         # Stability, focus, exposure, crop
@@ -28,11 +30,13 @@ Botanika/
 │   │   ├── models/              # Only if browser runtime is later justified
 │   │   └── maps/                # Reserved; no map without GNSS
 │   └── src/
-│       ├── app/                 # Routes, boot, capabilities
+│       ├── app/                 # Routes, boot, capabilities, mode handoff
 │       ├── components/          # Accessible shared primitives
 │       ├── features/
 │       │   ├── home/            # E-ink three-action homepage
 │       │   ├── scan/            # Pi Camera preview and scan flow
+│       │   ├── mode/            # Pairing and Pi mode/status screens
+│       │   ├── networked/       # Paired browser camera and crop-only flow
 │       │   ├── library/         # Local list/details/history
 │       │   ├── chat/            # Offline botanical guide
 │       │   └── weeds/           # Final beta UI
@@ -61,6 +65,7 @@ Botanika/
 │   ├── llm/
 │   └── embeddings/
 ├── deploy/
+│   ├── network/                 # Private AP, DHCP/DNS, and firewall templates
 │   ├── systemd/                 # Local backend/maintenance units
 │   └── kiosk/                   # Fullscreen Pi browser session
 ├── tests/
@@ -93,3 +98,5 @@ Botanika/
 5. `tools` prepares or verifies assets but is not imported by request handlers.
 6. Runtime services bind to loopback during the Pi-only phase.
 7. Tests use synthetic/licensed fixtures, never real personal discovery data.
+8. The optional public transport is a no-account Quick Tunnel for development/
+   testing; it is not a production ingress or account/domain substitute.

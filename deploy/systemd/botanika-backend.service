@@ -1,0 +1,34 @@
+[Unit]
+Description=Botanika FastAPI service (SOLO, optional private AP, optional Quick Tunnel)
+After=botanika-access-point.service botanika-dnsmasq.service botanika-firewall.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=botanika
+Group=botanika
+# The backend is the single owner of the Pi Camera, microphone/speaker, and
+# optional mode-button GPIO. Keep those device permissions explicit instead of
+# running the application as root.
+SupplementaryGroups=video render audio gpio
+EnvironmentFile=-/etc/botanika/botanika.env
+WorkingDirectory=/opt/botanika
+# If the environment enables the AP, the launcher verifies the live firewall,
+# interface, DHCP, and DNS boundary before opening a wildcard listener. A
+# Quick Tunnel deployment leaves NETWORK_ENABLED=false/loopback=true and starts
+# cloudflared only after the operator selects NETWORKED.
+ExecStart=/opt/botanika/.venv/bin/python /opt/botanika/tools/run_api.py
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=botanika
+RuntimeDirectoryMode=0755
+TimeoutStopSec=15
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=200
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

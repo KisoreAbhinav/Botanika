@@ -64,7 +64,7 @@ function drawScene(context, canvas, snapshot) {
       label = formatDetectorLabel(detection.label);
     }
 
-    context.font = "600 12px Inter, Arial, sans-serif";
+    context.font = "800 12px Inter, ui-sans-serif, system-ui, sans-serif";
     context.textBaseline = "bottom";
     if (label) {
       drawLabel(context, label, x1, y1 - 4, selected ? GREEN : OCHRE);

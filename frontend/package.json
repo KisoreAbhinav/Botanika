@@ -1,16 +1,17 @@
 {
   "name": "botanika-kiosk",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.9.0",
   "type": "module",
-  "description": "Botanika Phase 6 standalone 800x480 kiosk interface (SOLO).",
+  "description": "Botanika kiosk and responsive paired client for SOLO, private AP, and optional Quick Tunnel transport.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node src/features/scan/scanState.test.js",
+    "test": "node --test src/features/scan/scanState.test.js src/features/mode/modeState.test.js src/features/networked/browserCapabilities.test.js src/features/weeds/weedGeometry.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

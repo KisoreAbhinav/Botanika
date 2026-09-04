@@ -36,6 +36,45 @@ class CapabilitiesReport:
     storage: CapabilityState
     library: CapabilityState
     preview: CapabilityState
+    # Phase 5/6 callers construct this report directly, so the network field
+    # is optional for backwards compatibility. AP mode marks it required at
+    # runtime; SOLO readiness does not depend on an optional private link.
+    network: CapabilityState = field(
+        default_factory=lambda: CapabilityState(
+            "network",
+            False,
+            "Private Wi-Fi access point is not configured.",
+        )
+    )
+    network_required: bool = False
+    mode: CapabilityState = field(
+        default_factory=lambda: CapabilityState(
+            "mode",
+            True,
+            "SOLO/NETWORKED handoff is available through the software fallback.",
+        )
+    )
+    llm: CapabilityState = field(
+        default_factory=lambda: CapabilityState(
+            "llm",
+            False,
+            "Optional local generation model is unavailable; extractive answers remain available.",
+        )
+    )
+    voice: CapabilityState = field(
+        default_factory=lambda: CapabilityState(
+            "voice",
+            False,
+            "Pi voice input/output is unavailable; typed chat remains available.",
+        )
+    )
+    weeds: CapabilityState = field(
+        default_factory=lambda: CapabilityState(
+            "weeds",
+            False,
+            "Independent weed-beta detector is unavailable.",
+        )
+    )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -46,6 +85,11 @@ class CapabilitiesReport:
             "storage": self.storage.to_dict(),
             "library": self.library.to_dict(),
             "preview": self.preview.to_dict(),
+            "network": self.network.to_dict(),
+            "mode": self.mode.to_dict(),
+            "llm": self.llm.to_dict(),
+            "voice": self.voice.to_dict(),
+            "weeds": self.weeds.to_dict(),
         }
 
     @property
@@ -56,7 +100,7 @@ class CapabilitiesReport:
         the local image fallback, but storage and library must be sound.
         """
 
-        return all(
+        core_ready = all(
             (
                 self.classifier.available,
                 self.knowledge.available,
@@ -65,6 +109,7 @@ class CapabilitiesReport:
                 self.preview.available,
             )
         )
+        return core_ready and (not self.network_required or self.network.available)
 
 
 def build_capabilities(
@@ -87,6 +132,22 @@ def build_capabilities(
     knowledge_available: bool = False,
     knowledge_detail: str = "Offline knowledge is unavailable.",
     knowledge_model: dict[str, object] | None = None,
+    network_available: bool = False,
+    network_detail: str = "Private Wi-Fi access point is unavailable.",
+    network_model: dict[str, object] | None = None,
+    network_required: bool = False,
+    mode_available: bool = True,
+    mode_detail: str = "SOLO/NETWORKED handoff is available.",
+    mode_model: dict[str, object] | None = None,
+    llm_available: bool = False,
+    llm_detail: str = "Optional local generation model is unavailable; extractive answers remain available.",
+    llm_model: dict[str, object] | None = None,
+    voice_available: bool = False,
+    voice_detail: str = "Pi voice input/output is unavailable; typed chat remains available.",
+    voice_model: dict[str, object] | None = None,
+    weeds_available: bool = False,
+    weeds_detail: str = "Independent weed-beta detector is unavailable.",
+    weeds_model: dict[str, object] | None = None,
 ) -> CapabilitiesReport:
     """Assemble an honest capability report from measured runtime values."""
 
@@ -137,6 +198,16 @@ def build_capabilities(
         library_error or "Species-grouped discovery library is writable.",
     )
     preview = CapabilityState("preview", preview_ok, preview_detail)
+    network = CapabilityState(
+        "network",
+        network_available,
+        network_detail,
+        network_model,
+    )
+    mode = CapabilityState("mode", mode_available, mode_detail, mode_model)
+    llm = CapabilityState("llm", llm_available, llm_detail, llm_model)
+    voice = CapabilityState("voice", voice_available, voice_detail, voice_model)
+    weeds = CapabilityState("weeds", weeds_available, weeds_detail, weeds_model)
 
     return CapabilitiesReport(
         camera=camera,
@@ -146,6 +217,12 @@ def build_capabilities(
         storage=storage,
         library=library,
         preview=preview,
+        network=network,
+        mode=mode,
+        network_required=network_required,
+        llm=llm,
+        voice=voice,
+        weeds=weeds,
     )
 
 
@@ -161,4 +238,9 @@ def empty_capabilities(message: str = "Application is starting.") -> Capabilitie
         storage=unavailable,
         library=unavailable,
         preview=unavailable,
+        network=unavailable,
+        mode=CapabilityState("mode", False, message),
+        llm=unavailable,
+        voice=unavailable,
+        weeds=unavailable,
     )

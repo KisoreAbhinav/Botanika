@@ -1,26 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AskIcon, LeafMark } from "../components/icons.jsx";
-import { fetchCapabilities, fetchReady } from "../platform/api.js";
+import {
+  clearControllerToken,
+  fetchCapabilities,
+  fetchModeStatus,
+  fetchReady,
+  getControllerToken,
+  heartbeatController,
+  returnToSolo,
+  setControllerToken,
+  toggleMode,
+} from "../platform/api.js";
 import { HomePage } from "../features/home/HomePage.jsx";
 import { ScanPage } from "../features/scan/ScanPage.jsx";
 import { LibraryPage } from "../features/library/LibraryPage.jsx";
 import { AskPage } from "../features/ask/AskPage.jsx";
 import { WeedsPage } from "../features/weeds/WeedsPage.jsx";
+import { MODES } from "../features/mode/modeState.js";
+import { PairingPage, PairedConsole, UnpairedConsole } from "../features/mode/ModeScreens.jsx";
 
 export function App() {
   const [screen, setScreen] = useState("home");
   const [toasts, setToasts] = useState([]);
   const [capabilities, setCapabilities] = useState(null);
   const [ready, setReady] = useState(null);
+  const [modeStatus, setModeStatus] = useState(null);
+  const [controllerToken, setControllerTokenState] = useState(() => getControllerToken());
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [scale, setScale] = useState(1);
+  const [compact, setCompact] = useState(false);
   const toastSeq = useRef(0);
+  const operator = modeStatus?.client_role === "operator";
+  // Only an explicitly identified remote client gets the portrait shell.
+  // During startup (or when an older backend has no mode endpoint), the Pi
+  // remains the fixed kiosk canvas instead of reflowing at 800×480.
+  const responsive = modeStatus?.client_role === "remote" || compact;
 
   const notify = useCallback((message, kind = "info") => {
     const id = ++toastSeq.current;
     setToasts((current) => [...current.slice(-2), { id, message, kind }]);
     if (kind !== "error") {
-      // Informational toasts auto-dismiss after 5 s; errors stay until closed.
       setTimeout(() => {
         setToasts((current) => current.filter((toast) => toast.id !== id));
       }, 5000);
@@ -44,49 +63,189 @@ export function App() {
     }
   }, []);
 
+  const refreshMode = useCallback(async () => {
+    try {
+      const status = await fetchModeStatus();
+      setModeStatus(status);
+      if (status?.mode !== MODES.NETWORKED_PAIRED && controllerToken) {
+        clearControllerToken();
+        setControllerTokenState(null);
+      }
+    } catch {
+      // Keep the last known mode while the Pi briefly restarts. Individual
+      // features expose their own reconnect state when they need the service.
+    }
+  }, [controllerToken]);
+
   useEffect(() => {
     refreshCapabilities();
     const interval = setInterval(refreshCapabilities, 15000);
     return () => clearInterval(interval);
   }, [refreshCapabilities]);
 
-  // Scale the fixed 800x480 shell proportionally on other viewports.
+  useEffect(() => {
+    refreshMode();
+    const interval = setInterval(refreshMode, 2000);
+    return () => clearInterval(interval);
+  }, [refreshMode]);
+
+  useEffect(() => {
+    if (operator || !controllerToken) return undefined;
+    const checkLease = async () => {
+      try {
+        const status = await heartbeatController();
+        setModeStatus(status);
+      } catch (caught) {
+        if (caught.status === 401) {
+          clearControllerToken();
+          setControllerTokenState(null);
+          notify("Controller lease lost. Pair this device again.", "error");
+          await refreshMode();
+        }
+      }
+    };
+    const interval = setInterval(checkLease, 20000);
+    return () => clearInterval(interval);
+  }, [operator, controllerToken, notify, refreshMode]);
+
+  // The Pi keeps its exact 800×480 shell. A portrait browser gets a separate
+  // responsive shell instead of a scaled kiosk canvas.
   useEffect(() => {
     const update = () => {
+      const portrait = window.innerHeight > window.innerWidth * 1.05;
+      const isCompact = portrait || window.innerWidth < 700;
+      setCompact(isCompact);
       const fit = Math.min(window.innerWidth / 800, window.innerHeight / 480);
-      setScale(fit);
+      setScale(isCompact ? 1 : Math.max(0.5, fit));
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Keyboard shortcuts: 1/2/3 homepage actions, A for Ask, H or Escape home.
+  const setPaired = useCallback((token, status) => {
+    setControllerToken(token);
+    setControllerTokenState(token);
+    setModeStatus(status);
+  }, []);
+
+  const handleSolo = useCallback(async () => {
+    const status = await returnToSolo();
+    clearControllerToken();
+    setControllerTokenState(null);
+    setModeStatus(status);
+    setScreen("home");
+  }, []);
+
+  const handleToggle = useCallback(async () => {
+    try {
+      const status = await toggleMode();
+      setModeStatus(status);
+      if (status?.mode !== MODES.NETWORKED_PAIRED) {
+        clearControllerToken();
+        setControllerTokenState(null);
+      }
+      notify(
+        status?.mode === MODES.NETWORKED_UNPAIRED
+          ? "Networked mode is ready to pair."
+          : "SOLO mode restored.",
+        "info",
+      );
+    } catch (caught) {
+      notify(caught.message, "error");
+    }
+  }, [notify]);
+
+  const handleLeaseLost = useCallback(() => {
+    clearControllerToken();
+    setControllerTokenState(null);
+    refreshMode();
+  }, [refreshMode]);
+
+  // Software/keyboard fallback for development; the physical GPIO adapter
+  // calls the same /mode/toggle transition.
   useEffect(() => {
     const onKey = (event) => {
+      if (!operator) return;
       if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
       const key = event.key.toLowerCase();
       if (key === "1") setScreen("scan");
       else if (key === "2") setScreen("library");
+      else if (key === "3") setScreen("weeds");
       else if (key === "a") setScreen("ask");
+      else if (key === "n") handleToggle();
       else if (key === "h" || key === "escape") setScreen("home");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [handleToggle, operator]);
 
-  const summary = summarize(capabilities);
+  if (modeStatus?.mode === MODES.SOLO && !operator) {
+    return <PairingPage status={modeStatus} onPaired={setPaired} onRefresh={refreshMode} />;
+  }
+
+  if (modeStatus?.mode === MODES.NETWORKED_UNPAIRED) {
+    if (operator) return <UnpairedConsole status={modeStatus} onSolo={handleSolo} onRefresh={refreshMode} />;
+    return <PairingPage status={modeStatus} onPaired={setPaired} onRefresh={refreshMode} />;
+  }
+
+  if (modeStatus?.mode === MODES.NETWORKED_PAIRED && operator) {
+    return <PairedConsole status={modeStatus} onSolo={handleSolo} onRefresh={refreshMode} />;
+  }
+
+  if (modeStatus?.mode === MODES.NETWORKED_PAIRED && !operator && !controllerToken) {
+    return <PairingPage status={modeStatus} onPaired={setPaired} onRefresh={refreshMode} />;
+  }
 
   return (
-    <div className="shell" style={{ transform: `scale(${scale})` }}>
+    <AppShell
+      compact={responsive}
+      scale={scale}
+      screen={screen}
+      setScreen={setScreen}
+      capabilities={capabilities}
+      ready={ready}
+      modeStatus={modeStatus}
+      networked={modeStatus?.mode === MODES.NETWORKED_PAIRED}
+      showDiagnostics={showDiagnostics}
+      setShowDiagnostics={setShowDiagnostics}
+      onToggleMode={handleToggle}
+      notify={notify}
+      toasts={toasts}
+      dismissToast={dismissToast}
+      onLeaseLost={handleLeaseLost}
+    />
+  );
+}
+function AppShell({
+  compact,
+  scale,
+  screen,
+  setScreen,
+  capabilities,
+  ready,
+  modeStatus,
+  networked,
+  showDiagnostics,
+  setShowDiagnostics,
+  onToggleMode,
+  notify,
+  toasts,
+  dismissToast,
+  onLeaseLost,
+}) {
+  const summary = summarize(capabilities);
+  return (
+    <div className={`shell ${compact ? "responsive-shell" : ""}`} style={{ transform: compact ? "none" : `scale(${scale})` }}>
       <header className="masthead">
         <div className="masthead-side">
           {screen !== "home" ? (
-            <button type="button" className="btn quiet" onClick={() => setScreen("home")}>
-              Home
-            </button>
+            <button type="button" className="btn quiet" onClick={() => setScreen("home")}>Home</button>
           ) : (
-            <span className="masthead-status">SOLO · Loopback</span>
+            <>
+              <span className="masthead-status">{transportLabel(capabilities, modeStatus)}</span>
+              {!compact && <button type="button" className="btn quiet mode-button" onClick={onToggleMode}>Mode</button>}
+            </>
           )}
         </div>
         <div className="masthead-center">
@@ -116,10 +275,31 @@ export function App() {
 
       <main className="body">
         {screen === "home" && <HomePage onNavigate={setScreen} capabilities={capabilities} />}
-        {screen === "scan" && <ScanPage notify={notify} capabilities={capabilities} />}
+        {screen === "scan" && (
+          <ScanPage
+            notify={notify}
+            capabilities={capabilities}
+            networked={networked}
+            onLeaseLost={onLeaseLost}
+          />
+        )}
         {screen === "library" && <LibraryPage notify={notify} />}
-        {screen === "weeds" && <WeedsPage />}
-        {screen === "ask" && <AskPage ready={ready} />}
+        {screen === "weeds" && (
+          <WeedsPage
+            capabilities={capabilities}
+            networked={networked}
+            notify={notify}
+            onLeaseLost={onLeaseLost}
+          />
+        )}
+        {screen === "ask" && (
+          <AskPage
+            ready={ready}
+            capabilities={capabilities}
+            localOperator={modeStatus?.client_role === "operator"}
+            onNavigate={setScreen}
+          />
+        )}
         {showDiagnostics && (
           <DiagnosticsPop
             capabilities={capabilities}
@@ -131,9 +311,7 @@ export function App() {
           {toasts.map((toast) => (
             <div key={toast.id} className={`toast ${toast.kind}`}>
               <span>{toast.message}</span>
-              <button type="button" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">
-                ×
-              </button>
+              <button type="button" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">×</button>
             </div>
           ))}
         </div>
@@ -145,8 +323,28 @@ export function App() {
 function summarize(capabilities) {
   if (!capabilities) return { ok: false, knowledge: false };
   const keys = ["camera", "detector", "classifier", "storage", "library", "preview"];
+  // The private AP is expected to stay ready while configured. A Quick
+  // Tunnel, however, is intentionally idle in SOLO and must not make the
+  // otherwise-offline kiosk look degraded before NETWORKED is selected.
+  const networkModel = capabilities.network?.model;
+  const configuredNetworkEnabled = Boolean(capabilities.network?.model?.enabled);
+  const tunnelOnly = Boolean(networkModel?.tunnel?.enabled && !networkModel?.status?.enabled);
+  if (configuredNetworkEnabled && !tunnelOnly) keys.push("network");
   const ok = keys.every((key) => capabilities[key] && capabilities[key].available);
   return { ok, knowledge: Boolean(capabilities.knowledge && capabilities.knowledge.available) };
+}
+
+function transportLabel(capabilities, modeStatus) {
+  if (modeStatus?.mode === MODES.NETWORKED_PAIRED) return "NETWORKED · Paired";
+  if (modeStatus?.mode === MODES.NETWORKED_UNPAIRED) return "NETWORKED · Pairing";
+  const status = capabilities?.network?.model;
+  const tunnelOnly = Boolean(status?.tunnel?.enabled && !status?.status?.enabled);
+  if (status?.enabled && !tunnelOnly) {
+    if (status.available) return "SOLO · Private Wi-Fi";
+    return "SOLO · AP starting";
+  }
+  if (status?.tunnel?.enabled) return "SOLO · Tunnel idle";
+  return "SOLO · Loopback";
 }
 
 function DiagnosticsPop({ capabilities, ready, onClose }) {
@@ -156,25 +354,19 @@ function DiagnosticsPop({ capabilities, ready, onClose }) {
   return (
     <section className="diagnostics-pop" aria-label="Diagnostics">
       <h3>Diagnostics</h3>
-      {ready && (
-        <p style={{ margin: "0 0 6px" }}>
-          Readiness: <strong>{ready.status}</strong>
-        </p>
-      )}
-      <dl style={{ margin: 0 }}>
+      {ready && <p className="diagnostics-readiness">Readiness: <strong>{ready.status}</strong></p>}
+      <dl className="diagnostics-list">
         {rows.map(([name, state]) => (
           <div className="metric-row" key={name}>
             <dt>{name}</dt>
             <dd>
               {state.available ? "Ready" : "Unavailable"}
-              {state.detail ? <div style={{ color: "var(--faint)" }}>{state.detail}</div> : null}
+              {state.detail ? <div className="diagnostics-detail">{state.detail}</div> : null}
             </dd>
           </div>
         ))}
       </dl>
-      <button type="button" className="btn quiet" style={{ marginTop: 8 }} onClick={onClose}>
-        Close
-      </button>
+      <button type="button" className="btn quiet diagnostics-close" onClick={onClose}>Close</button>
     </section>
   );
 }

@@ -4,8 +4,8 @@ const strokeProps = {
   fill: "none",
   stroke: "currentColor",
   strokeWidth: 1.8,
-  strokeLinecap: "square",
-  strokeLinejoin: "miter",
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
 };
 
 export function LeafMark({ size = 30 }) {

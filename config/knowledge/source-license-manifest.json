@@ -1,0 +1,108 @@
+{
+  "format": "botanika-source-license-manifest-1",
+  "catalog": "config/catalog/india-starter-species.json",
+  "catalog_sha256": "b4ade13a269e991bbe67af06d6963faf79b0a1d70aada8fdbca6b0d8c4fcff9c",
+  "retrieved_at": "2026-09-02",
+  "offline_use": "Reviewed text is embedded in the catalog; URLs are provenance, not runtime fetches.",
+  "sources": [
+    {
+      "source_id": "kew-ficus-benghalensis-profile",
+      "title": "Ficus benghalensis — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:852482-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "source_type": "species-profile"
+    },
+    {
+      "source_id": "kew-ficus-religiosa-backbone",
+      "title": "Ficus religiosa — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:853563-1/general-information",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "kew-artocarpus-heterophyllus-backbone",
+      "title": "Artocarpus heterophyllus — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_type": "taxonomy-and-distribution"
+    },
+    {
+      "source_id": "kew-artocarpus-heterophyllus-ftea",
+      "title": "Artocarpus heterophyllus — Flora of Tropical East Africa via POWO",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:850389-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Flora of Tropical East Africa)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "source_type": "flora-description"
+    },
+    {
+      "source_id": "kew-ocimum-tenuiflorum-profile",
+      "title": "Ocimum tenuiflorum — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:453130-1/general-information",
+      "license": "CC BY-NC-SA 3.0 (Kew Species Profiles)",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "source_type": "species-profile"
+    },
+    {
+      "source_id": "kew-moringa-oleifera-backbone",
+      "title": "Moringa oleifera — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:584736-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "iucn-moringa-oleifera",
+      "title": "Moringa oleifera assessment — IUCN Red List",
+      "publisher": "International Union for Conservation of Nature",
+      "url": "https://www.iucnredlist.org/species/61890232/61890241",
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "source_type": "conservation-assessment"
+    },
+    {
+      "source_id": "kew-jasminum-sambac-backbone",
+      "title": "Jasminum sambac — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:609755-1",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "kew-syzygium-microphyllum-backbone",
+      "title": "Syzygium microphyllum — Plants of the World Online",
+      "publisher": "Royal Botanic Gardens, Kew",
+      "url": "https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:601940-1/general-information",
+      "license": "CC BY 3.0 (Kew taxonomic backbone and distribution)",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "source_type": "taxonomy-and-ecology"
+    },
+    {
+      "source_id": "iucn-syzygium-microphyllum",
+      "title": "Syzygium microphyllum assessment — IUCN Red List",
+      "publisher": "International Union for Conservation of Nature",
+      "url": "https://www.iucnredlist.org/species/37626/10067599",
+      "license": "IUCN Red List Terms and Conditions of Use",
+      "license_url": "https://www.iucnredlist.org/terms/terms-of-use",
+      "source_type": "conservation-assessment"
+    },
+    {
+      "source_id": "wikimedia-commons",
+      "title": "Wikimedia Commons image references",
+      "publisher": "Wikimedia Foundation contributors",
+      "url": "https://commons.wikimedia.org/",
+      "license": "Per-file CC BY-SA, CC BY, or public-domain terms; verify before ingesting an asset",
+      "license_url": "https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia",
+      "source_type": "image-reference"
+    }
+  ]
+}

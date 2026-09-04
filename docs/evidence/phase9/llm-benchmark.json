@@ -1,0 +1,12 @@
+{
+  "detail": "Local GGUF model is unavailable: /home/pi/Botanika/models/llm/botanika.gguf",
+  "model": {
+    "available": false,
+    "backend": "unavailable",
+    "detail": "Local GGUF model is unavailable: /home/pi/Botanika/models/llm/botanika.gguf",
+    "model_loaded": false,
+    "model_path": "/home/pi/Botanika/models/llm/botanika.gguf"
+  },
+  "network": "not used",
+  "status": "blocked"
+}

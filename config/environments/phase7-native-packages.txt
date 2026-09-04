@@ -1,0 +1,13 @@
+# Botanika Phase 7 Raspberry Pi OS packages.
+# Install dnsmasq and nftables, then choose the AP stack supported by the
+# installed image: NetworkManager OR hostapd. Do not run two AP managers for
+# wlan0 at the same time.
+# dnsmasq-base supplies the daemon without enabling a competing global unit;
+# Botanika owns the dedicated service and configuration.
+dnsmasq-base
+nftables
+iw
+rfkill
+# One of the following is required:
+# network-manager
+# hostapd
