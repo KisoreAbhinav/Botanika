@@ -50,6 +50,9 @@ FILES = (
     "config/knowledge/source-license-manifest.json",
     "config/llm/phase9-llama.example.json",
     "config/weed/phase9-beta.json",
+    "docs/MODEL_ASSET_REVIEW_2026-09-04.md",
+    "docs/evidence/phase9/weed-benchmark.json",
+    "docs/evidence/phase9/tunnel-live.json",
     "backend/src/botanika/knowledge/embeddings.py",
     "backend/src/botanika/knowledge/llm.py",
     "backend/src/botanika/voice/coordinator.py",
@@ -199,7 +202,7 @@ def deterministic_checks() -> list[Check]:
 
         class FakeDetector:
             def detect(self, _image):
-                return [Detection(0, "parthenium", 0.81, BoundingBox(10, 20, 100, 120))]
+                return [Detection(0, "weed", 0.81, BoundingBox(10, 20, 100, 120))]
 
         weeds = WeedService(settings, detector=FakeDetector(), observation_store=observations)
         import numpy as np

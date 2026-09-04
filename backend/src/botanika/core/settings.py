@@ -88,6 +88,9 @@ class AppSettings:
     # paths are opt-in artifacts; the application never downloads them.
     llm_model_path: Path = DEFAULT_LLM_MODEL
     llm_backend: str = "auto"
+    # Explicit executable path keeps the service independent of a shell PATH;
+    # the binary is installed separately and is never downloaded by Botanika.
+    llama_cli_path: str = "/usr/local/bin/llama-cli"
     llm_context_tokens: int = 2048
     llm_threads: int = 4
     llm_batch_size: int = 128
@@ -276,6 +279,12 @@ class AppSettings:
                 raise ValueError("eligible_labels must contain non-empty strings")
         if self.llm_backend not in {"auto", "llama-cpp-python", "llama-cli", "disabled"}:
             raise ValueError("llm_backend must be auto, llama-cpp-python, llama-cli, or disabled")
+        if (
+            not isinstance(self.llama_cli_path, str)
+            or not self.llama_cli_path.strip()
+            or any(character in self.llama_cli_path for character in "\x00\r\n")
+        ):
+            raise ValueError("llama_cli_path must be a non-empty executable name or path")
         for name, value in (
             ("llm_context_tokens", self.llm_context_tokens),
             ("llm_threads", self.llm_threads),
@@ -497,6 +506,7 @@ class AppSettings:
             ),
             llm_model_path=_parse_path(value("llm_model_path", DEFAULT_LLM_MODEL, environment_name="BOTANIKA_LLM_MODEL_PATH"), DEFAULT_LLM_MODEL),
             llm_backend=str(value("llm_backend", "auto", environment_name="BOTANIKA_LLM_BACKEND")).lower(),
+            llama_cli_path=str(value("llama_cli_path", "/usr/local/bin/llama-cli", environment_name="BOTANIKA_LLAMA_CLI_PATH")).strip(),
             llm_context_tokens=_parse_int(value("llm_context_tokens", 2048, environment_name="BOTANIKA_LLM_CONTEXT_TOKENS"), "BOTANIKA_LLM_CONTEXT_TOKENS"),
             llm_threads=_parse_int(value("llm_threads", 4, environment_name="BOTANIKA_LLM_THREADS"), "BOTANIKA_LLM_THREADS"),
             llm_batch_size=_parse_int(value("llm_batch_size", 128, environment_name="BOTANIKA_LLM_BATCH_SIZE"), "BOTANIKA_LLM_BATCH_SIZE"),
@@ -566,6 +576,7 @@ class AppSettings:
                     "backup_dir",
                     "llm_model_path",
                     "llm_backend",
+                    "llama_cli_path",
                     "llm_context_tokens",
                     "llm_threads",
                     "llm_batch_size",

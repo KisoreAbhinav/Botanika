@@ -22,7 +22,7 @@ import numpy as np
 from botanika.core.settings import AppSettings
 from botanika.api.concurrency import run_blocking
 from botanika.knowledge import KnowledgeStore
-from botanika.knowledge.llm import validate_grounded_output
+from botanika.knowledge.llm import _extract_cli_response, validate_grounded_output
 from botanika.storage import DiscoveryLibrary, WeedObservationStore
 from botanika.vision.detection import BoundingBox, Detection
 from botanika.vision.weeds import WeedService
@@ -83,8 +83,8 @@ class Phase9ExtraTests(unittest.TestCase):
                     return self.values
 
             boxes = [
-                Detection(0, "parthenium", 0.9, BoundingBox(2, 3, 30, 40)),
-                Detection(1, "nutsedge", 0.8, BoundingBox(50, 60, 90, 120)),
+                Detection(0, "weed", 0.9, BoundingBox(2, 3, 30, 40)),
+                Detection(0, "weed", 0.8, BoundingBox(50, 60, 90, 120)),
             ]
             service = WeedService(settings, detector=Detector(boxes), observation_store=observations)
             image = np.zeros((160, 240, 3), dtype=np.uint8)
@@ -172,6 +172,13 @@ class Phase9ExtraTests(unittest.TestCase):
         self.assertFalse(validate_grounded_output("Banyan is native [chunk-a]. it has aerial roots.", {"chunk-a"}))
         self.assertFalse(validate_grounded_output("Banyan is native [chunk-a].", {"chunk-b"}))
         self.assertFalse(validate_grounded_output("[chunk-a]", {"chunk-a"}))
+
+    def test_llama_cli_wrapper_is_removed_before_grounding(self):
+        prompt = "Evidence:\n[benchmark:chunk-1] Banyan is reviewed.\nQuestion: What is it?\nAnswer:"
+        raw = f"Loading model...\n> {prompt}\nBanyan is reviewed [benchmark:chunk-1].\n\nExiting...\n"
+        output = _extract_cli_response(raw, prompt)
+        self.assertEqual(output, "Banyan is reviewed [benchmark:chunk-1].")
+        self.assertTrue(validate_grounded_output(output, {"benchmark:chunk-1"}))
 
     def test_production_environment_wires_state_paths(self):
         settings = AppSettings.from_environment(

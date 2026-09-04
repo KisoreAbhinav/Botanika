@@ -1,0 +1,28 @@
+{
+  "status": "verified_then_cleaned_up",
+  "cloudflared": {
+    "path": "/usr/local/bin/cloudflared",
+    "version": "2026.8.3",
+    "sha256": "4bcfd35521a7cbc545ebfd5d57334a71ee180e2a64874981f374c81472118391",
+    "source": "https://developers.cloudflare.com/tunnel/downloads/",
+    "license": "Apache-2.0",
+    "license_source": "https://github.com/cloudflare/cloudflared/blob/master/LICENSE"
+  },
+  "configuration": {
+    "network_enabled": false,
+    "host": "127.0.0.1",
+    "loopback_only": true,
+    "tunnel_enabled": true,
+    "startup_timeout_seconds": 15,
+    "origin": "http://127.0.0.1:8000"
+  },
+  "checks": {
+    "first_start": "ready",
+    "first_public_health": "HTTP 200 /api/v1/health/live",
+    "retry": "replacement child reached ready with a new trycloudflare.com origin",
+    "replacement_public_health": "not independently confirmed because the replacement hostname returned a transient DNS resolution failure during warm-up",
+    "solo_cleanup": "mode SOLO, tunnel idle, no cloudflared child"
+  },
+  "source": "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/",
+  "limitations": "Quick Tunnel URLs are random and temporary; Cloudflare documents testing/development intent, a 200 in-flight request limit, and no Server-Sent Events. The URL is intentionally not stored in Git."
+}

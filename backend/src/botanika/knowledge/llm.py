@@ -47,6 +47,7 @@ class LocalLLM:
         model_path: Path,
         *,
         backend: str = "auto",
+        cli_path: str = "/usr/local/bin/llama-cli",
         context_tokens: int = 2048,
         threads: int = 4,
         batch_size: int = 128,
@@ -56,6 +57,7 @@ class LocalLLM:
     ) -> None:
         self.model_path = Path(model_path)
         self.backend = str(backend).lower()
+        self.cli_path = str(cli_path).strip() or "llama-cli"
         self.context_tokens = int(context_tokens)
         self.threads = int(threads)
         self.batch_size = int(batch_size)
@@ -103,15 +105,24 @@ class LocalLLM:
             )
             text = str(response.get("choices", [{}])[0].get("text", "")).strip()
         elif self._resolved_backend == "llama-cli":
+            executable = self._cli_executable()
+            if executable is None:
+                raise RuntimeError(f"llama-cli executable is unavailable: {self.cli_path}")
             completed = subprocess.run(
                 [
-                    "llama-cli",
+                    executable,
                     "-m", str(self.model_path),
                     "-c", str(self.context_tokens),
                     "-t", str(self.threads),
                     "-b", str(self.batch_size),
                     "--temp", str(self.temperature),
                     "-n", str(self.max_tokens),
+                    "--single-turn",
+                    "--simple-io",
+                    "--no-display-prompt",
+                    "--no-show-timings",
+                    "--no-perf",
+                    "--no-escape",
                     "-p", prompt,
                 ],
                 capture_output=True,
@@ -121,7 +132,7 @@ class LocalLLM:
             )
             if completed.returncode != 0:
                 raise RuntimeError(completed.stderr.strip() or "llama-cli failed")
-            text = completed.stdout.strip()
+            text = _extract_cli_response(completed.stdout, prompt)
         else:  # pragma: no cover - defensive after _ensure_loaded
             return None
         allowed = {str(getattr(hit, "chunk_id", "")) for hit in hits if str(getattr(hit, "chunk_id", ""))}
@@ -133,10 +144,10 @@ class LocalLLM:
         if self.backend == "llama-cpp-python":
             return self.backend if importlib.util.find_spec("llama_cpp") is not None else "unavailable"
         if self.backend == "llama-cli":
-            return self.backend if shutil.which("llama-cli") else "unavailable"
+            return self.backend if self._cli_executable() else "unavailable"
         if importlib.util.find_spec("llama_cpp") is not None:
             return "llama-cpp-python"
-        if shutil.which("llama-cli"):
+        if self._cli_executable():
             return "llama-cli"
         return "unavailable"
 
@@ -161,6 +172,8 @@ class LocalLLM:
                     verbose=False,
                 )
             elif backend == "llama-cli":
+                if self._cli_executable() is None:
+                    raise RuntimeError(f"llama-cli executable is unavailable: {self.cli_path}")
                 self._model = object()
             else:
                 raise RuntimeError("neither llama-cpp-python nor llama-cli is installed")
@@ -168,6 +181,38 @@ class LocalLLM:
         except Exception as exc:
             self._load_error = f"could not load local LLM: {exc}"
             raise RuntimeError(self._load_error) from exc
+
+    def _cli_executable(self) -> str | None:
+        """Resolve the configured binary without invoking a shell."""
+
+        return shutil.which(self.cli_path)
+
+
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _extract_cli_response(output: str, prompt: str) -> str:
+    """Remove llama.cpp's human console wrapper from single-turn output.
+
+    llama.cpp currently emits its banner and an echoed prompt even with
+    ``--no-display-prompt`` in some non-TTY builds.  The prompt is a unique
+    delimiter, so extracting only text after it prevents banners, diagnostics,
+    and the interactive ``Exiting...`` marker from entering citation checks.
+    If a future build suppresses the echo, validation still receives the
+    remaining output and rejects anything that is not fully grounded.
+    """
+
+    value = _ANSI_RE.sub("", str(output or "")).replace("\r", "")
+    # Strip terminal spinner backspaces without touching ordinary prose.
+    value = re.sub(r"[^\n]\x08", "", value)
+    marker = str(prompt).strip()
+    if marker and marker in value:
+        value = value.split(marker, 1)[1]
+    if "\nExiting..." in value:
+        value = value.split("\nExiting...", 1)[0]
+    elif "Exiting..." in value:
+        value = value.split("Exiting...", 1)[0]
+    return value.strip(" \n\t>")
 
 
 def grounded_prompt(question: str, evidence: Iterable[Any], context_tokens: int = 2048) -> str:

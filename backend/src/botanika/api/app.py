@@ -112,6 +112,7 @@ async def _lifespan(app: FastAPI):
     llm = LocalLLM(
         settings.llm_model_path,
         backend=settings.llm_backend,
+        cli_path=settings.llama_cli_path,
         context_tokens=settings.llm_context_tokens,
         threads=settings.llm_threads,
         batch_size=settings.llm_batch_size,

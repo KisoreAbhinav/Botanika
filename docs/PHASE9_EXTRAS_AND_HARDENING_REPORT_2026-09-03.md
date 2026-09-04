@@ -1,7 +1,7 @@
 # Phase 9 — Extras and final hardening report
 
 Date: 2026-09-03
-Status: software hardening complete; physical/model release gate deferred
+Status: software hardening complete; physical acceptance and exact plant-model gate deferred
 
 ## Outcome
 
@@ -50,7 +50,8 @@ Configuration and tools: `config/knowledge/source-license-manifest.json`,
 Deployment/docs: `deploy/systemd/botanika-kiosk.service`,
 `deploy/systemd/botanika-tmpfiles.conf`, `deploy/kiosk/README.md`, and the
 Phase 9 updates to the configuration, deployment, backend, frontend, and tool
-runbooks.
+runbooks. The model-asset provenance and compatibility review is recorded in
+`docs/MODEL_ASSET_REVIEW_2026-09-04.md`.
 
 ## Verification and evidence
 
@@ -59,9 +60,11 @@ runbooks.
 - `npm run build` — production Vite build passed; final bundle was 209.67 kB JavaScript (65.40 kB gzip) and 28.86 kB CSS (6.12 kB gzip).
 - `npm test` — 4 frontend tests passed, including contained image/box geometry at kiosk and phone aspect ratios.
 - `PYTHONPATH=backend/src .venv/bin/python tools/verify_phase8_ui.py` — existing mode/paired UI smoke test passed.
-- `PYTHONPATH=backend/src .venv/bin/python tools/verify_phase9_ui.py` — chat and Weed Beta UI smoke test passed at 800×480 and 390×844 (fixture smoke only; the detector asset remains unavailable).
+- `PYTHONPATH=backend/src .venv/bin/python tools/verify_phase9_ui.py` — chat and Weed Beta UI smoke test passed at 800×480 and 390×844 (fixture smoke only).
 - `tools/ingest_knowledge.py` — 11 sources and 14 chunks indexed; manifest digest `a52ee3f215f03104893118453ce94995ea76a1ef2d2b27b5f417ef99450e6bbe`.
-- `tools/benchmark_local_llm.py` — deliberately returned exit 2 (`blocked`): `/home/pi/Botanika/models/llm/botanika.gguf` is not installed. The blocked result is recorded in `docs/evidence/phase9/llm-benchmark.json`.
+- `tools/benchmark_local_llm.py` — the installed Pi run loaded Qwen2.5-1.5B-Instruct through llama.cpp b10797 in 13.37 s with 149.77 MiB peak RSS. The model produced text but omitted the required chunk citation, so LocalLLM correctly rejected it; the result is recorded as `degraded` in `docs/evidence/phase9/llm-benchmark.json`.
+- The deployed broadleaf detector loaded through ONNX Runtime and returned five `weed` boxes (0.379–0.778 confidence) on a pinned publisher-provided Wisconsin turf frame in 562.34 ms; the result and input checksum are recorded in `docs/evidence/phase9/weed-benchmark.json`.
+- The enabled loopback Quick Tunnel reached `ready` and forwarded `/api/v1/health/live` with HTTP 200. Retry replaced the child and produced a fresh URL; the replacement hostname had a transient DNS warm-up failure during the check. Returning to SOLO left no cloudflared child. See `docs/evidence/phase9/tunnel-live.json`.
 
 Browser evidence is in:
 
@@ -79,9 +82,11 @@ The read-only host probe measured Raspberry Pi 5 Model B Rev 1.1, aarch64,
 Debian trixie, 45.2 °C, and approximately 395.4 GiB free SSD space. Chromium,
 systemd, OpenCV, NumPy, FastAPI, ONNX Runtime, sounddevice, Vosk, Piper, and
 related Python bindings were discoverable. No usable camera/display capture or
-microphone/speaker device was available from this session. Botanika has no
-installed Vosk model, Piper voice, llama executable/GGUF, or independent weed
-ONNX artifact, so those capabilities correctly report unavailable.
+microphone/speaker device was available from this session. A checksum-verified
+Qwen GGUF, llama.cpp arm64 runtime, and scoped broadleaf ONNX detector are now
+installed under `/opt/botanika`; Vosk/Piper assets remain uninstalled. The exact
+seven-species classifier and Indian-crop weed contract remain unavailable, as
+documented in `docs/MODEL_ASSET_REVIEW_2026-09-04.md`.
 
 The Phase 6 species model remains explicitly field/thermal/unknown-rejection
 unvalidated, and the Phase 8 report still has a deferred physical/operator

@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, default=AppSettings().llm_model_path)
     parser.add_argument("--backend", choices=("auto", "llama-cpp-python", "llama-cli"), default="auto")
+    parser.add_argument("--cli-path", type=str, default=AppSettings().llama_cli_path)
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--output", type=Path, default=None)
     return parser
@@ -37,12 +38,13 @@ def main(argv: list[str] | None = None) -> int:
     llm = LocalLLM(
         args.model,
         backend=args.backend,
+        cli_path=args.cli_path,
         context_tokens=2048,
         threads=4,
         batch_size=128,
         temperature=0.1,
-        max_tokens=256,
-        timeout_seconds=20,
+        max_tokens=128,
+        timeout_seconds=45,
     )
     initial = llm.status()
     if not initial.available:
@@ -85,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     result = {
         "status": "ok" if all(item["grounded_output"] for item in samples) else "degraded",
         "host": {"platform": platform.platform(), "machine": platform.machine()},
-        "settings": {"backend": args.backend, "threads": 4, "batch_size": 128, "context_tokens": 2048, "max_tokens": 256, "temperature": 0.1},
+        "settings": {"backend": args.backend, "cli_path": args.cli_path, "threads": 4, "batch_size": 128, "context_tokens": 2048, "max_tokens": 128, "temperature": 0.1, "timeout_seconds": 45},
         "model": llm.status().to_dict(),
         "runs": samples,
         "latency_ms": {"min": min(latencies), "p50": sorted(latencies)[len(latencies) // 2], "max": max(latencies)},

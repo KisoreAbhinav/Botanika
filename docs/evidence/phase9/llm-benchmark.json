@@ -1,12 +1,42 @@
 {
-  "detail": "Local GGUF model is unavailable: /home/pi/Botanika/models/llm/botanika.gguf",
-  "model": {
-    "available": false,
-    "backend": "unavailable",
-    "detail": "Local GGUF model is unavailable: /home/pi/Botanika/models/llm/botanika.gguf",
-    "model_loaded": false,
-    "model_path": "/home/pi/Botanika/models/llm/botanika.gguf"
+  "status": "degraded",
+  "host": {
+    "machine": "aarch64",
+    "platform": "Linux-6.12.62+rpt-rpi-2712-aarch64-with-glibc2.41"
   },
+  "settings": {
+    "backend": "llama-cli",
+    "cli_path": "/opt/botanika/runtime/llama-b10797/llama-cli",
+    "threads": 4,
+    "batch_size": 128,
+    "context_tokens": 2048,
+    "max_tokens": 128,
+    "temperature": 0.1,
+    "timeout_seconds": 45
+  },
+  "model": {
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+    "artifact": "/opt/botanika/models/llm/botanika.gguf",
+    "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+    "available": true,
+    "backend": "llama-cli",
+    "model_loaded": true
+  },
+  "runs": [
+    {
+      "run": 1,
+      "latency_ms": 13369.74,
+      "grounded_output": false,
+      "error": null,
+      "reason": "The model generated text but omitted the required benchmark:chunk-1 citation; LocalLLM rejected it."
+    }
+  ],
+  "latency_ms": {
+    "min": 13369.74,
+    "p50": 13369.74,
+    "max": 13369.74
+  },
+  "max_rss_mb": 149.77,
   "network": "not used",
-  "status": "blocked"
+  "interpretation": "Standalone service-stopped Pi run. The GGUF loads and produces text, but this prompt did not satisfy Botanika's per-statement citation gate; no grounded generation claim is made. Deterministic extractive answers remain authoritative."
 }

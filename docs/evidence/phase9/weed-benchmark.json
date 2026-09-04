@@ -1,0 +1,33 @@
+{
+  "status": "smoke_pass",
+  "host": {
+    "machine": "aarch64",
+    "platform": "Linux-6.12.62+rpt-rpi-2712-aarch64-with-glibc2.41"
+  },
+  "model": {
+    "model_name": "Broadleaf Weed Detector YOLO11n 640",
+    "source_revision": "33475e9",
+    "artifact": "/opt/botanika/models/weed_detector/broadleaf-yolo11n-640.onnx",
+    "sha256": "5e9e6bd6b83dd4c7e483baeed05d8847f2b69e3fc97a301bef354e22c7c1316b",
+    "input": [1, 3, 640, 640],
+    "output": [1, 5, 8400],
+    "labels": {"0": "weed"}
+  },
+  "input": {
+    "source": "https://huggingface.co/llama-farm/broadleaf-weed-detector/resolve/33475e9/eval/footage-demo/PXL_20260703_192829832_00050.jpg?download=true",
+    "sha256": "6383bc42a49baa37bc94644ba85d30fc426b3529f54f319d42b2e5780839b2f3",
+    "size": [1920, 1080]
+  },
+  "runtime": "onnxruntime CPUExecutionProvider",
+  "confidence_threshold": 0.30,
+  "latency_ms": 562.34,
+  "detections": [
+    {"class": "weed", "confidence": 0.778016, "box": [1340.54, 682.21, 1901.02, 1075.29]},
+    {"class": "weed", "confidence": 0.652591, "box": [360.21, 670.97, 480.96, 746.45]},
+    {"class": "weed", "confidence": 0.616315, "box": [1148.73, 146.55, 1233.81, 221.24]},
+    {"class": "weed", "confidence": 0.504637, "box": [527.09, 463.93, 669.10, 606.94]},
+    {"class": "weed", "confidence": 0.379171, "box": [143.80, 204.18, 241.86, 261.59]}
+  ],
+  "image_persistence": false,
+  "interpretation": "Five boxes were produced on one publisher-provided Wisconsin turf frame. This is a runtime smoke test, not an independently labeled accuracy evaluation or Indian-crop acceptance result."
+}

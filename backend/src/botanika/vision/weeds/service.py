@@ -42,6 +42,13 @@ class WeedDetectorManifest:
     input_width: int
     input_height: int
     model_manifest: ModelManifest
+    source_model_card: str | None = None
+    source_revision: str | None = None
+    license_url: str | None = None
+    inference_notes: str | None = None
+    limitations: str | None = None
+    artifact_export_license_metadata: str | None = None
+    reported_metrics: dict[str, Any] | None = None
 
     @classmethod
     def from_file(cls, path: Path) -> "WeedDetectorManifest":
@@ -93,6 +100,17 @@ class WeedDetectorManifest:
             input_width=int(input_size[0]),
             input_height=int(input_size[1]),
             model_manifest=model_manifest,
+            source_model_card=_optional_text(value.get("source_model_card")),
+            source_revision=_optional_text(value.get("source_revision")),
+            license_url=_optional_text(value.get("license_url")),
+            inference_notes=_optional_text(value.get("inference_notes")),
+            limitations=_optional_text(value.get("limitations")),
+            artifact_export_license_metadata=_optional_text(value.get("artifact_export_license_metadata")),
+            reported_metrics=(
+                dict(value["reported_metrics"])
+                if isinstance(value.get("reported_metrics"), dict)
+                else None
+            ),
         )
 
     def digest(self) -> str:
@@ -179,6 +197,13 @@ class WeedService:
                 "crop_context": self.manifest.crop_context,
                 "source": self.manifest.source,
                 "license": self.manifest.license,
+                "license_url": self.manifest.license_url,
+                "source_model_card": self.manifest.source_model_card,
+                "source_revision": self.manifest.source_revision,
+                "inference_notes": self.manifest.inference_notes,
+                "limitations": self.manifest.limitations,
+                "artifact_export_license_metadata": self.manifest.artifact_export_license_metadata,
+                "reported_metrics": self.manifest.reported_metrics,
                 "labels": list(self.manifest.labels),
                 "artifact_path": str(self.manifest.artifact_path),
                 "artifact_sha256": self.manifest.artifact_sha256,
@@ -268,6 +293,8 @@ class WeedService:
                     "manifest_sha256": self.manifest.digest(),
                     "source": self.manifest.source,
                     "license": self.manifest.license,
+                    "license_url": self.manifest.license_url,
+                    "source_revision": self.manifest.source_revision,
                 },
                 position=normalized_position,
                 observed_at=self._clock(),
@@ -323,6 +350,15 @@ def _position_if_accurate(position: dict[str, Any] | None, maximum_accuracy: flo
         "source": source,
         "timestamp": timestamp,
     }
+
+
+def _optional_text(value: Any) -> str | None:
+    """Normalize optional manifest metadata without admitting blank strings."""
+
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _jpeg_data_url(image: np.ndarray) -> str:

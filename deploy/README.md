@@ -132,6 +132,12 @@ source/license checksums. The second is a bounded local measurement; it
 returns `blocked` when the GGUF or llama runtime is missing. Missing LLM, STT,
 TTS, camera, or weed assets do not block typed chat or the local shell.
 
+For the installed Pi release, set `BOTANIKA_LLAMA_CLI_PATH` to the verified
+arm64 `llama-cli` binary alongside `BOTANIKA_LLM_MODEL_PATH`. Botanika strips
+the CLI's console wrapper and still accepts generated wording only when every
+statement cites a reviewed local chunk; an uncited answer is rejected in favor
+of deterministic extraction.
+
 Install `deploy/systemd/botanika-tmpfiles.conf` as a tmpfiles rule and enable
 `botanika-kiosk.service` with the backend. The kiosk waits for the local
 readiness endpoint, launches Chromium at 800×480, and restarts on failure.
