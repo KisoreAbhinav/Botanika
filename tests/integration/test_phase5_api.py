@@ -28,6 +28,24 @@ def build_test_settings(tmp: Path) -> AppSettings:
     )
 
 
+class ProductionStaticMountTest(unittest.TestCase):
+    """The production app must not write compatibility data into the checkout."""
+
+    def test_create_app_does_not_create_legacy_demo_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            demo_dir = root / "checkout" / "data" / "media" / "discoveries" / "demo"
+            settings = AppSettings(
+                database_path=root / "runtime" / "database.sqlite",
+                discoveries_dir=root / "runtime" / "discoveries",
+                demo_discoveries_dir=demo_dir,
+            )
+
+            create_app(settings)
+
+            self.assertFalse(demo_dir.exists())
+
+
 class AsgiTestClient:
     """Small synchronous facade over HTTPX2's native ASGI transport."""
 

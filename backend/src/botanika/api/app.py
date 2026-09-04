@@ -279,9 +279,13 @@ def _mount_static(app: FastAPI, settings: AppSettings) -> None:
         return _local_file_response(media_dir, media_path)
 
     # Keep the old path available for an already-created Phase 5 demo folder;
-    # the Phase 6 runtime never writes to it or reports it as a discovery.
+    # the Phase 6 runtime never writes to it or reports it as a discovery.  A
+    # production service account must not create directories inside the
+    # read-only application checkout, so only legacy test/demo settings may
+    # initialize this compatibility path.
     demo_dir = settings.demo_discoveries_dir
-    demo_dir.mkdir(parents=True, exist_ok=True)
+    if settings.legacy_demo_mode:
+        demo_dir.mkdir(parents=True, exist_ok=True)
 
     @app.get("/media/demo/{media_path:path}", include_in_schema=False)
     async def demo_media(request: Request, media_path: str):
