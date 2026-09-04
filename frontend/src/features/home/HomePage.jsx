@@ -2,8 +2,8 @@ import { Foliage, LibraryIcon, ScanIcon, WeedIcon } from "../../components/icons
 
 export function HomePage({ onNavigate, capabilities }) {
   const camera = stateOf(capabilities, "camera");
-  const models = combinedState(capabilities, ["detector", "classifier"]);
-  const classifierReady = stateOf(capabilities, "classifier") === "ready";
+  const plantId = stateOf(capabilities, "classifier");
+  const classifierReady = plantId === "ready";
   const knowledge = stateOf(capabilities, "knowledge");
   const storage = stateOf(capabilities, "storage");
   const weeds = stateOf(capabilities, "weeds");
@@ -43,7 +43,7 @@ export function HomePage({ onNavigate, capabilities }) {
 
         <button
           type="button"
-          className="home-card"
+          className="home-card weed-card"
           onClick={() => onNavigate("weeds")}
           disabled={weeds !== "ready"}
           aria-keyshortcuts="3"
@@ -81,7 +81,7 @@ export function HomePage({ onNavigate, capabilities }) {
 
       <div className="home-status">
         <StatusItem label="Camera" state={camera} />
-        <StatusItem label="Models" state={models} />
+        <StatusItem label="Plant ID" state={plantId} unavailableText="Validation pending" />
         <StatusItem label="Knowledge" state={knowledge} />
         <StatusItem label="Storage" state={storage} />
         <StatusItem label="Weeds" state={weeds} />
@@ -95,17 +95,13 @@ function stateOf(capabilities, key) {
   return capabilities[key].available ? "ready" : "unavailable";
 }
 
-function combinedState(capabilities, keys) {
-  return keys.every((key) => stateOf(capabilities, key) === "ready") ? "ready" : "unavailable";
-}
-
-function StatusItem({ label, state }) {
+function StatusItem({ label, state, unavailableText = "Unavailable" }) {
   const dotClass = state === "ready" ? "" : "down";
   return (
     <span className="status-item">
       <span className={`status-dot ${dotClass}`} aria-hidden="true" />
       <span>
-        {label}: {state === "ready" ? "Ready" : "Unavailable"}
+        {label}: {state === "ready" ? "Ready" : unavailableText}
       </span>
     </span>
   );

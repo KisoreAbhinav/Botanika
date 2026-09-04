@@ -476,6 +476,21 @@ textarea:focus-visible {
   height: 40px;
 }
 
+/* The Weed Detection title also carries the Beta badge. Keep that row on one
+   line so its icon receives the same bounded space as the other home cards. */
+.weed-card {
+  overflow: hidden;
+}
+
+.weed-card .card-label {
+  font-size: 1.12rem;
+  white-space: nowrap;
+}
+
+.weed-card .badge {
+  vertical-align: 2px;
+}
+
 .card-hotkey {
   position: absolute;
   top: 11px;
@@ -2402,6 +2417,10 @@ textarea:focus-visible {
   width: 100%;
   min-height: 126px;
   height: auto;
+}
+
+.responsive-shell .weed-card {
+  overflow: visible;
 }
 
 .responsive-shell .home-status {

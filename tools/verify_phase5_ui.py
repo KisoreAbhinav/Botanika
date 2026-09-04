@@ -181,6 +181,11 @@ def main(argv: list[str] | None = None) -> int:
         assert page.locator(".masthead").evaluate("element => element.offsetHeight") == 66
         assert page.locator(".home-card").nth(2).is_disabled()
         assert not undersized_controls(page)
+        weed_card = page.locator(".weed-card").bounding_box()
+        weed_icon = page.locator(".weed-card .card-icon").bounding_box()
+        assert weed_card is not None and weed_icon is not None
+        assert weed_icon["y"] >= weed_card["y"]
+        assert weed_icon["y"] + weed_icon["height"] <= weed_card["y"] + weed_card["height"]
         page.keyboard.press("?")
         page.wait_for_selector(".shortcuts-pop")
         page.keyboard.press("1")

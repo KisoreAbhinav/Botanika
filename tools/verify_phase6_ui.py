@@ -262,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
         wait_for_paint(page, 0)
         assert_persistent_masthead_pixels(page)
         page.screenshot(path=str(output / "home-800x480.png"))
-        assert page.get_by_text("Models: Unavailable", exact=True).is_visible()
+        assert page.get_by_text("Plant ID: Validation pending", exact=True).is_visible()
 
         page.get_by_text("Scan for Plants", exact=True).click()
         page.wait_for_timeout(200)
