@@ -19,7 +19,7 @@
   "checks": {
     "first_start": "ready",
     "first_public_health": "HTTP 200 /api/v1/health/live",
-    "retry": "replacement child reached ready with a new trycloudflare.com origin",
+    "retry": "replacement child reached ready with a new trycloudflare.com origin (generation 2; PID 113835 replaced by PID 114124)",
     "replacement_public_health": "not independently confirmed because the replacement hostname returned a transient DNS resolution failure during warm-up",
     "solo_cleanup": "mode SOLO, tunnel idle, no cloudflared child"
   },
