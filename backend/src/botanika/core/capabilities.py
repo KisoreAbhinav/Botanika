@@ -171,7 +171,11 @@ def build_capabilities(
     if classifier_available is None:
         classifier_available = not classifier_stub
     if classifier_available and not classifier_stub:
-        classifier_detail = "Validated compact catalog classifier is loaded; unknown views are rejected."
+        if isinstance(classifier_model, dict) and str(classifier_model.get("model_id", "")).startswith("botanika.campus"):
+            count = classifier_model.get("label_count", "arbitrary")
+            classifier_detail = f"Validated campus few-shot classifier is loaded ({count} labels); unknown views are rejected."
+        else:
+            classifier_detail = "Validated compact catalog classifier is loaded; unknown views are rejected."
     elif classifier_available and classifier_stub:
         classifier_detail = "Phase 4 deterministic stub is available only for development."
     else:

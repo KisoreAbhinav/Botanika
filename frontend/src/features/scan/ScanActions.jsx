@@ -89,7 +89,7 @@ export function ScanActions({
     <div className="scan-actions">
       {!hasResult && cameraAvailable && (
         <button type="button" className="btn primary" onClick={onManualCapture} disabled={processing}>
-          Manual capture
+          Manual capture · Space
         </button>
       )}
       {!hasResult && (

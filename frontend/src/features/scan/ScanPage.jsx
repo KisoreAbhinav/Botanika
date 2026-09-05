@@ -3,6 +3,7 @@ import { CameraIcon } from "../../components/icons.jsx";
 import {
   PREVIEW_URL,
   fetchScanState,
+  manualCapture,
   selectBox,
   subscribeToSnapshots,
   uploadFallbackImage,
@@ -10,6 +11,7 @@ import {
 import { ScanOverlay } from "./ScanOverlay.jsx";
 import { ScanSidePanel } from "./ScanSidePanel.jsx";
 import { ScanActions } from "./ScanActions.jsx";
+import { shouldManualCaptureFromKey } from "./scanState.js";
 import { NetworkedScanPage } from "../networked/NetworkedScanPage.jsx";
 
 export function ScanPage({ notify, capabilities, networked = false, onLeaseLost }) {
@@ -44,6 +46,18 @@ function SoloScanPage({ notify, capabilities }) {
   const mode = snapshot ? snapshot.mode : "camera";
   const previewAvailable = cameraAvailable || mode === "fallback";
   const hasResult = Boolean(snapshot && snapshot.classification);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!shouldManualCaptureFromKey(event, snapshot)) return;
+      event.preventDefault();
+      manualCapture()
+        .then(() => notify("Manual frame capture requested.", "info"))
+        .catch((caught) => notify(caught.message, "error"));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [notify, snapshot]);
 
   const onSelectBox = useCallback(
     async (index) => {

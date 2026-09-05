@@ -69,6 +69,7 @@ class SpeciesSuggestion:
     common_name: str
     scientific_name: str
     confidence: float
+    catalogued: bool = True
 
     def __post_init__(self) -> None:
         if (
@@ -84,12 +85,15 @@ class SpeciesSuggestion:
             or not 0.0 <= self.confidence <= 1.0
         ):
             raise ValueError("suggestion confidence must be between 0 and 1")
+        if not isinstance(self.catalogued, bool):
+            raise ValueError("suggestion catalogued flag must be a boolean")
 
     def to_dict(self) -> dict[str, object]:
         return {
             "common_name": self.common_name,
             "scientific_name": self.scientific_name,
             "confidence": self.confidence,
+            "catalogued": self.catalogued,
         }
 
 
@@ -112,6 +116,7 @@ class ClassificationResult:
     demo_label: str = ""
     suggestions: tuple[SpeciesSuggestion, ...] = ()
     error: str | None = None
+    catalogued: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, ClassificationStatus):
@@ -125,6 +130,8 @@ class ClassificationResult:
             raise ValueError("is_stub must be a boolean")
         if not isinstance(self.demo_label, str):
             raise ValueError("demo_label must be a string")
+        if not isinstance(self.catalogued, bool):
+            raise ValueError("catalogued flag must be a boolean")
         if self.is_stub and self.demo_label != DEMO_DATA_LABEL:
             raise ValueError("stub responses must be labelled DEMO DATA")
         if not self.is_stub and self.demo_label:
@@ -249,6 +256,7 @@ class ClassificationResult:
             "demo_label": self.demo_label,
             "suggestions": [suggestion.to_dict() for suggestion in self.suggestions],
             "error": self.error,
+            "catalogued": self.catalogued,
         }
 
 

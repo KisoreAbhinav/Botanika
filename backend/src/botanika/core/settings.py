@@ -15,6 +15,8 @@ DEFAULT_MANIFEST = PROJECT_ROOT / "config" / "models" / "yolo11n-coco.json"
 DEFAULT_QUALITY_CONFIG = PROJECT_ROOT / "config" / "vision" / "phase3-quality-baseline.json"
 DEFAULT_SPECIES_CATALOG = PROJECT_ROOT / "config" / "catalog" / "india-starter-species.json"
 DEFAULT_CLASSIFIER_MODEL = PROJECT_ROOT / "models" / "plant_classifier" / "india-starter-feature-v1.json"
+DEFAULT_CAMPUS_CLASSIFIER_MODEL = PROJECT_ROOT / "models" / "plant_classifier" / "campus-fewshot-v1.json"
+DEFAULT_EMBEDDING_MODEL = PROJECT_ROOT / "models" / "embeddings" / "mobilenetv2-10-embedding.onnx"
 DEFAULT_LLM_MODEL = PROJECT_ROOT / "models" / "llm" / "botanika.gguf"
 DEFAULT_STT_MODELS = PROJECT_ROOT / "models" / "stt"
 DEFAULT_TTS_MODELS = PROJECT_ROOT / "models" / "tts"
@@ -82,6 +84,8 @@ class AppSettings:
     # owner; a missing or invalid artifact is an honest unavailable state.
     species_catalog_path: Path = DEFAULT_SPECIES_CATALOG
     classifier_model_path: Path = DEFAULT_CLASSIFIER_MODEL
+    campus_classifier_model_path: Path = DEFAULT_CAMPUS_CLASSIFIER_MODEL
+    embedding_model_path: Path = DEFAULT_EMBEDDING_MODEL
     acceptance_threshold: float = 0.62
 
     # Phase 9A: optional local generation and one-owner voice pipeline.  These
@@ -489,6 +493,38 @@ class AppSettings:
                 value("database_path", DEFAULT_SQLITE_PATH, environment_name="BOTANIKA_DATABASE_PATH"),
                 DEFAULT_SQLITE_PATH,
             ),
+            species_catalog_path=_parse_path(
+                value(
+                    "species_catalog_path",
+                    DEFAULT_SPECIES_CATALOG,
+                    environment_name="BOTANIKA_SPECIES_CATALOG_PATH",
+                ),
+                DEFAULT_SPECIES_CATALOG,
+            ),
+            classifier_model_path=_parse_path(
+                value(
+                    "classifier_model_path",
+                    DEFAULT_CLASSIFIER_MODEL,
+                    environment_name="BOTANIKA_CLASSIFIER_MODEL_PATH",
+                ),
+                DEFAULT_CLASSIFIER_MODEL,
+            ),
+            campus_classifier_model_path=_parse_path(
+                value(
+                    "campus_classifier_model_path",
+                    DEFAULT_CAMPUS_CLASSIFIER_MODEL,
+                    environment_name="BOTANIKA_CAMPUS_CLASSIFIER_MODEL_PATH",
+                ),
+                DEFAULT_CAMPUS_CLASSIFIER_MODEL,
+            ),
+            embedding_model_path=_parse_path(
+                value(
+                    "embedding_model_path",
+                    DEFAULT_EMBEDDING_MODEL,
+                    environment_name="BOTANIKA_EMBEDDING_MODEL_PATH",
+                ),
+                DEFAULT_EMBEDDING_MODEL,
+            ),
             temp_crops_dir=_parse_path(
                 value(
                     "temp_crops_dir",
@@ -571,6 +607,10 @@ class AppSettings:
                     "controller_health_timeout_seconds",
                     "max_remote_crop_upload_bytes",
                     "database_path",
+                    "species_catalog_path",
+                    "classifier_model_path",
+                    "campus_classifier_model_path",
+                    "embedding_model_path",
                     "temp_crops_dir",
                     "discoveries_dir",
                     "backup_dir",

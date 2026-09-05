@@ -31,6 +31,24 @@ its metrics remain unmeasured. A future exact seven-class model must publish a
 license, class map, Pi-compatible artifact, and held-out field evaluation
 before this gate is changed.
 
+## Campus few-shot encoder selection: why MobileNetV2 is the bounded first release
+
+The campus workflow keeps the encoder model ID, version, and checksum inside
+the immutable enrollment artifact and loads it through an explicit registry.
+That makes it possible to compare a future plant-trained encoder on the same
+campus holdout without mixing vectors from different models.
+
+| Candidate | Official evidence | Pi decision |
+| --- | --- | --- |
+| [ONNX Model Zoo MobileNetV2 1.0](https://github.com/onnx/models/tree/main/validated/vision/classification/mobilenet) | Apache-2.0, an officially published ONNX classifier, and a documented 224×224 ImageNet preprocessing contract. Botanika exposes its 1,280-dimensional penultimate classifier-input tensor without changing weights. The derived artifact is 13.96 MB and measured about 103 ms for original+flip extraction on this Pi. | Selected as the smallest, already-verifiable CPU/ONNX baseline. It is ImageNet-trained and expected to need campus-specific holdout calibration; it is not a claim of plant-specialist accuracy. |
+| [Pl@ntNet-300K ResNet18](https://github.com/plantnet/PlantNet-300K) | The official repository describes 306,146 images across 1,081 species, publishes ResNet18 weights through an external lab.plantnet.org download, requires PyTorch/torchvision, and uses BSD-2-Clause repository code. Its classifier output is 1,081 PlantNet classes, not a ready campus embedding artifact. | Stronger domain match and a planned comparison candidate, but deferred from the Pi release: the external weight URL is not a pinned ONNX/CPU artifact, its PyTorch runtime adds substantial footprint, and conversion/output semantics need a separate checksum and license review. |
+| [BioCLIP](https://github.com/Imageomics/bioclip) / [BioCLIP 2](https://github.com/Imageomics/bioclip-2) | Official Imageomics repositories describe biology-trained CLIP models and BioCLIP 2's MIT code license. BioCLIP 2 uses a ViT-L/14 visual architecture and distributes weights separately; the projects use OpenCLIP/PyTorch-style runtimes rather than a compact Pi ONNX release. | Not selected for the current Pi: heavyweight CPU footprint and no verified compact local artifact. Revisit only if a compatible, licensed, quantized ONNX export is benchmarked against the campus holdout. No “BioCLIP-mobile” artifact was found in the reviewed official sources. |
+
+This is a bounded baseline, not a quality shortcut. Once the campus photos
+arrive, compare registered encoders using plant/session-separated held-out
+images and unknowns, and promote only the encoder/index that meets the
+documented macro-F1, unknown-rejection, leakage, and latency gates.
+
 ## Weed detector: installed, but only as a scoped experimental beta
 
 The installed artifact is the `broadleaf-yolo11n-640.onnx` file from

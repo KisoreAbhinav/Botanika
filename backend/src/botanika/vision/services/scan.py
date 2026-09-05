@@ -14,6 +14,7 @@ import math
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -21,6 +22,7 @@ import numpy as np
 from botanika.core.settings import AppSettings
 from botanika.hardware.camera import CameraConfig, CameraError, CameraOwner, FrameReadError
 from botanika.vision.classification import (
+    CampusFewShotClassifier,
     CancellationToken,
     CompactSpeciesClassifier,
     ClassificationPipeline,
@@ -58,6 +60,13 @@ from .snapshot import ScanSnapshot, snapshot_from_update
 
 LOGGER = logging.getLogger("botanika.phase6.scan")
 CAMERA_CONFIG = CameraConfig(window_name="Botanika Kiosk")
+MANUAL_FRAME_LABEL = "manual central view"
+MANUAL_FRAME_CLASS_ID = -1
+# Leave a small safety inset so a manual tree/plant view can pass the edge
+# quality gate while still retaining almost the entire camera frame.  The
+# detector remains detection-only: this box is created only after the
+# operator presses the manual-capture hotkey/button.
+MANUAL_FRAME_INSET_RATIO = 0.04
 
 
 @dataclass(slots=True)
@@ -123,11 +132,21 @@ class ScanService:
             self._classifier = classifier
         elif use_production_classifier:
             try:
-                self._classifier = CompactSpeciesClassifier(
-                    settings.classifier_model_path,
-                    settings.species_catalog_path,
-                    acceptance_threshold=settings.acceptance_threshold,
-                )
+                campus_path = Path(settings.campus_classifier_model_path)
+                if campus_path.is_file():
+                    self._classifier = CampusFewShotClassifier(
+                        campus_path,
+                        settings.embedding_model_path,
+                        settings.species_catalog_path,
+                        acceptance_threshold=settings.acceptance_threshold,
+                    )
+                    LOGGER.info("Loaded campus few-shot classifier artifact %s", campus_path)
+                else:
+                    self._classifier = CompactSpeciesClassifier(
+                        settings.classifier_model_path,
+                        settings.species_catalog_path,
+                        acceptance_threshold=settings.acceptance_threshold,
+                    )
             except Exception as exc:
                 self._classifier_error = str(exc)
                 LOGGER.error("Species classifier unavailable: %s", exc)
@@ -647,9 +666,24 @@ class ScanService:
             if self._manual_capture_requested:
                 with self._state_lock:
                     self._manual_capture_requested = False
-                manual = engine.manual_capture(captured.image, preferred=preferred)
-                if manual.capture is not None:
-                    update = manual
+                # COCO has no reliable tree/plant coverage beyond its
+                # ``potted plant`` class.  A physical tree therefore needs an
+                # operator-directed path.  Keep automatic capture strictly
+                # detector-driven, but let a manual hotkey capture a nearly
+                # full central frame when the current frame has no eligible
+                # detector box.
+                has_eligible_detection = any(
+                    detection.label in self.settings.eligible_labels
+                    for detection in detections
+                )
+                if has_eligible_detection:
+                    manual = engine.manual_capture(captured.image, preferred=preferred)
+                else:
+                    engine.reset()
+                    manual = self._manual_frame_capture(captured.image)
+                    if manual.detection is not None:
+                        detections = [*detections, manual.detection]
+                update = manual
 
             transform = OverlayTransform.for_frame(
                 captured.image.shape[1],
@@ -1114,6 +1148,55 @@ class ScanService:
                 capture=capture,
             ),
             classification=classification,
+        )
+
+    def _manual_frame_capture(self, frame: np.ndarray) -> LockOnUpdate:
+        """Build an operator-only central ROI for undetected plants/trees.
+
+        The generic detector is intentionally not taught that every green
+        object is a plant.  When the operator explicitly requests capture and
+        no eligible box exists, this path preserves a large central view and
+        sends only that crop through the normal quality/classification
+        pipeline.  It never runs from :meth:`LockOnEngine.update`, so it
+        cannot trigger automatic capture.
+        """
+
+        height, width = frame.shape[:2]
+        inset_x = max(1.0, width * MANUAL_FRAME_INSET_RATIO)
+        inset_y = max(1.0, height * MANUAL_FRAME_INSET_RATIO)
+        box = BoundingBox(
+            inset_x,
+            inset_y,
+            max(inset_x + 1.0, width - inset_x),
+            max(inset_y + 1.0, height - inset_y),
+        )
+        detection = Detection(
+            class_id=MANUAL_FRAME_CLASS_ID,
+            label=MANUAL_FRAME_LABEL,
+            confidence=1.0,
+            box=box,
+        )
+        crop = _crop_region(frame, box)
+        quality = evaluate_crop(crop, box, width, height, self._quality_config)
+        if not quality.ready:
+            return LockOnUpdate(
+                state=LockOnState.CHECKING_SHARPNESS,
+                detection=detection,
+                quality=quality,
+                stable_checks=0,
+                required_checks=self._lock_config.stable_checks,
+                hint=f"Manual view: {quality.hint}",
+            )
+
+        capture = self._crop_store.save(frame, box, manual=True)
+        return LockOnUpdate(
+            state=LockOnState.CAPTURED,
+            detection=detection,
+            quality=quality,
+            stable_checks=self._lock_config.stable_checks,
+            required_checks=self._lock_config.stable_checks,
+            hint="Manual central view captured",
+            capture=capture,
         )
 
     # -- small control helpers ----------------------------------------------

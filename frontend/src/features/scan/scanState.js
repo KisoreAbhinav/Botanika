@@ -11,3 +11,23 @@ export function selectedFallbackIndex(snapshot) {
   if (!snapshot || snapshot.mode !== "fallback") return 0;
   return Number.isInteger(snapshot.selected_index) ? snapshot.selected_index : 0;
 }
+
+export function shouldManualCaptureFromKey(event, snapshot) {
+  const targetBlocked = event?.target?.matches?.(
+    "input, textarea, select, button, [contenteditable=\"true\"]",
+  );
+  return Boolean(
+    event
+    && event.code === "Space"
+    && !event.repeat
+    && !event.defaultPrevented
+    && !event.ctrlKey
+    && !event.altKey
+    && !event.metaKey
+    && !targetBlocked
+    && !(snapshot && snapshot.classification)
+    && (snapshot ? snapshot.camera_available : true)
+    && (!snapshot || snapshot.mode === "camera")
+    && !(snapshot && snapshot.processing),
+  );
+}

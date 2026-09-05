@@ -68,6 +68,20 @@ class FailingDetector(FakeDetector):
         raise DetectorUnavailable("detector intentionally unavailable")
 
 
+class NoPlantDetector(FakeDetector):
+    """Generic detector fixture with no eligible COCO plant box."""
+
+    def detect(self, frame: np.ndarray) -> list[Detection]:
+        return [
+            Detection(
+                class_id=14,
+                label="bird",
+                confidence=0.93,
+                box=BoundingBox(120, 80, 520, 400),
+            )
+        ]
+
+
 class FakeCamera:
     active = 0
     max_active = 0
@@ -224,13 +238,18 @@ class ScanServiceTests(unittest.TestCase):
         wait_until(lambda: classifier.started.is_set())
         wait_until(lambda: service.latest_snapshot() and service.latest_snapshot().processing)
 
+        event_sequence = service.events.last_sequence
         service.request_cancel()
         cancelled = wait_until(
             lambda: (
-                snapshot
-                if (snapshot := service.latest_snapshot()) is not None
-                and snapshot.hint == "Scan cancelled"
-                else None
+                next(
+                    (
+                        snapshot
+                        for snapshot in service.events.after(event_sequence)
+                        if snapshot.hint == "Scan cancelled"
+                    ),
+                    None,
+                )
             )
         )
         self.assertFalse(cancelled.processing)
@@ -252,6 +271,45 @@ class ScanServiceTests(unittest.TestCase):
         result = service.latest_snapshot()
         self.assertFalse(result.processing)
         self.assertTrue(result.classification.result.is_accepted)
+
+    def test_manual_camera_capture_uses_central_roi_without_eligible_box(self):
+        service = ScanService(self.settings, detector=NoPlantDetector())
+        update = service._manual_frame_capture(sharp_frame())
+
+        self.assertEqual(update.state.value, "Captured")
+        self.assertEqual(update.detection.label, "manual central view")
+        self.assertEqual(update.detection.class_id, -1)
+        self.assertTrue(update.capture.manual)
+        self.assertGreater(update.detection.box.x1, 0)
+        self.assertGreater(update.detection.box.y1, 0)
+        self.assertLess(update.detection.box.x2, 640)
+        self.assertLess(update.detection.box.y2, 480)
+        self.assertGreater(update.capture.width, 500)
+        self.assertGreater(update.capture.height, 350)
+
+    def test_manual_camera_hotkey_classifies_central_roi_when_detector_misses_tree(self):
+        camera = FakeCamera(sharp_frame())
+        service = ScanService(
+            self.settings,
+            camera_factory=lambda: camera,
+            detector=NoPlantDetector(),
+        )
+        service.start()
+        self.addCleanup(service.stop)
+        service.request_manual_capture()
+
+        result_snapshot = wait_until(
+            lambda: (
+                snapshot
+                if (snapshot := service.latest_snapshot()) is not None
+                and snapshot.classification is not None
+                else None
+            )
+        )
+        self.assertTrue(result_snapshot.classification.result.is_accepted)
+        self.assertEqual(result_snapshot.detections[-1].label, "manual central view")
+        self.assertEqual(result_snapshot.selected.label, "manual central view")
+        self.assertTrue(result_snapshot.capture.manual)
 
     def test_camera_reconnect_closes_failed_owner_before_reopening(self):
         failed = FakeCamera(sharp_frame(), fail_start=True)

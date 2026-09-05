@@ -190,6 +190,9 @@ class DiscoveryLibrary:
         self._check_quota(crop_size + len(thumbnail_bytes))
 
         species = self._species_row(result.species_id)
+        if species is None and not result.catalogued and str(result.species_id).startswith("campus:"):
+            self._ensure_campus_label(result)
+            species = self._species_row(result.species_id)
         if species is None:
             raise ValueError(f"species ID is not in the seeded catalog: {result.species_id}")
         now = self._clock()
@@ -837,6 +840,46 @@ class DiscoveryLibrary:
         with self.database.transaction(immediate=False) as connection:
             return connection.execute("SELECT * FROM species WHERE species_id = ?", (species_id,)).fetchone()
 
+    def _ensure_campus_label(self, result) -> None:
+        """Materialize an explicitly uncatalogued label for safe library joins.
+
+        Campus labels are not inserted into the immutable knowledge catalog and
+        receive only the classifier-provided display text plus explicit
+        ``Not catalogued`` placeholders.  This lets the crop-only discovery
+        library store a recognition without creating fabricated botanical
+        facts or citations.
+        """
+
+        species_id = str(result.species_id or "").strip()
+        common_name = _bounded_label(result.common_name, "Campus label")
+        values = (
+            species_id,
+            _bounded_label(result.scientific_name, "Uncatalogued campus label"),
+            common_name,
+            _bounded_label(result.family, "Not catalogued"),
+            "Campus enrollment",
+            _bounded_label(result.category, "Campus enrolled label"),
+            "Not assessed",
+            0,
+            "Not assessed",
+            "No sourced botanical facts are attached to this campus label.",
+            _bounded_label(result.short_notes, "Campus label recognized from enrollment photos."),
+            "[]",
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO species(
+                    species_id, scientific_name, common_name, family, region,
+                    category, native_status, is_native, conservation_status,
+                    ecology, short_notes, image_views, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
+
     def _find_recent_duplicate(self, crop_hash: str) -> LibraryRecord | None:
         now = self._clock()
         with self.database.transaction(immediate=False) as connection:
@@ -949,6 +992,13 @@ def _insert_position(connection: sqlite3.Connection, observation_id: str, positi
 def _safe_path_component(value: str) -> str:
     result = "".join(character if character.isalnum() or character in "-_" else "_" for character in value)
     return result.strip("._") or "species"
+
+
+def _bounded_label(value: object, fallback: str, limit: int = 500) -> str:
+    text = str(value or "").strip()
+    if not text:
+        text = fallback
+    return text[:limit]
 
 
 def _validated_relative(value: str) -> Path:

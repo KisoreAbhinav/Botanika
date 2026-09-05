@@ -824,6 +824,21 @@ textarea:focus-visible {
   line-height: 1.15;
 }
 
+.campus-label-tag {
+  display: inline-block;
+  border: 1px solid var(--ochre);
+  color: var(--ochre);
+  max-width: 100%;
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: var(--radius);
+  margin: 4px 0;
+  line-height: 1.15;
+}
+
 .suggestion-row {
   display: flex;
   justify-content: space-between;

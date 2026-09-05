@@ -34,6 +34,9 @@ export function ScanSidePanel({ snapshot, saveState }) {
           <div className="confidence-line">
             confidence {pct(result.confidence)} · {classification.duration_ms?.toFixed?.(0) ?? "–"} ms
           </div>
+          {result.catalogued === false && (
+            <span className="campus-label-tag">Campus photo label · no sourced facts</span>
+          )}
           {result.is_stub && <span className="demo-tag">Demo data — not an identification</span>}
           <dl className="metric-list result-metrics">
             <Metric label="Family" value={result.family} />
