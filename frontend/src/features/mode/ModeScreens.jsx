@@ -22,7 +22,10 @@ export function PairingPage({ status, onPaired, onRefresh }) {
   const [error, setError] = useState(null);
   const pairing = status?.pairing;
   const accessPoint = status?.access_point;
+  const tunnel = getTunnelState(status);
   const tunnelReady = tunnelState(status) === "ready";
+  const tunnelConfigured = Boolean(tunnel?.enabled);
+  const tunnelUnavailable = tunnelConfigured && !tunnelReady;
   const solo = status?.mode === MODES.SOLO;
 
   useEffect(() => {
@@ -70,12 +73,19 @@ export function PairingPage({ status, onPaired, onRefresh }) {
             ? "Use the physical mode button or Pi controls to enable pairing. This browser cannot change the Pi mode."
             : tunnelReady
               ? "Open the secure HTTPS link from the Pi screen, or scan its QR code, then confirm the one-time code. This phone will be the only active controller."
+              : tunnelUnavailable
+                ? "The secure internet link is not ready. Ask the Pi operator to retry Quick Tunnel before using this phone from another network."
               : "Join the private Wi-Fi network, then enter the one-time code shown on the Pi screen. This phone will be the only active controller."}
         </p>
         {tunnelReady ? (
           <section className="mode-info-grid" aria-label="Secure tunnel details">
             <div><span>Secure link</span><strong>{tunnelConnectUrl(status) || "–"}</strong></div>
             <div><span>HTTPS</span><strong>Enabled</strong></div>
+          </section>
+        ) : tunnelUnavailable ? (
+          <section className="mode-info-grid" aria-label="Secure tunnel unavailable">
+            <div><span>Secure link</span><strong>{tunnel?.state === "failed" ? "Unavailable" : "Starting…"}</strong></div>
+            <div><span>Detail</span><strong>{tunnel?.detail || "Wait for the Pi to publish its HTTPS URL."}</strong></div>
           </section>
         ) : (
           <section className="mode-info-grid" aria-label="Private Wi-Fi details">

@@ -25,6 +25,10 @@ class WeedRunRecord:
     position_message: str
     detections: tuple[dict[str, Any], ...]
     model_metadata: dict[str, Any] = field(default_factory=dict)
+    # One or more validated device fixes associated with this run. The beta
+    # never stores image pixels; callers can use this list to render/export a
+    # map without opening the raw database.
+    locations: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +40,7 @@ class WeedRunRecord:
             "position_message": self.position_message,
             "detections": [dict(item) for item in self.detections],
             "model_metadata": dict(self.model_metadata),
+            "locations": [dict(item) for item in self.locations],
             "image_persisted": False,
         }
 
@@ -81,6 +86,7 @@ class WeedObservationStore:
                 position_message=NO_POSITION_MESSAGE,
                 detections=tuple(_detection_dict(item) for item in detection_values),
                 model_metadata=dict(model_metadata or {}),
+                locations=(),
             )
         position_available = True
         message = "Coordinate recorded with the weed observation."
@@ -145,6 +151,7 @@ class WeedObservationStore:
             position_message=message,
             detections=tuple(_detection_dict(item) for item in detection_values),
             model_metadata=dict(model_metadata or {}),
+            locations=(_location_dict(normalized_position, observed_at=observed),),
         )
 
     def list_runs(self, *, limit: int = 50) -> list[WeedRunRecord]:
@@ -174,6 +181,15 @@ class WeedObservationStore:
                         stored_metadata = {}
                 except (TypeError, json.JSONDecodeError):
                     stored_metadata = {}
+                locations = _unique_locations(
+                    _location_dict_from_row(item)
+                    for item in connection.execute(
+                        "SELECT latitude, longitude, accuracy_m, position_source, position_timestamp, observed_at "
+                        "FROM weed_observations WHERE run_id = ? ORDER BY observed_at DESC",
+                        (row["run_id"],),
+                    ).fetchall()
+                    if item["latitude"] is not None and item["longitude"] is not None
+                )
                 result.append(
                     WeedRunRecord(
                         run_id=str(row["run_id"]),
@@ -184,6 +200,7 @@ class WeedObservationStore:
                         position_message=str(row["position_message"]),
                         detections=tuple(dict(item) for item in stored_detections),
                         model_metadata=stored_metadata,
+                        locations=locations,
                     )
                 )
         return result
@@ -266,6 +283,47 @@ def _detection_metadata(detection: Any) -> dict[str, Any]:
         "weed_class": str(getattr(detection, "weed_class", getattr(detection, "label", ""))),
         "confidence": float(getattr(detection, "confidence", 0.0)),
     }
+
+
+def _location_dict(position: dict[str, Any], *, observed_at: float) -> dict[str, Any]:
+    """Return the coordinate-only public shape for a just-saved run."""
+
+    return {
+        "latitude": float(position["latitude"]),
+        "longitude": float(position["longitude"]),
+        "accuracy_m": float(position["accuracy_m"]),
+        "source": str(position["source"]),
+        "timestamp": float(position.get("timestamp", observed_at)),
+    }
+
+
+def _location_dict_from_row(row: Any) -> dict[str, Any]:
+    """Normalize a SQLite row, including pre-position-timestamp databases."""
+
+    timestamp = row["position_timestamp"]
+    if timestamp is None:
+        timestamp = row["observed_at"]
+    return {
+        "latitude": float(row["latitude"]),
+        "longitude": float(row["longitude"]),
+        "accuracy_m": float(row["accuracy_m"]),
+        "source": str(row["position_source"] or "unknown"),
+        "timestamp": float(timestamp),
+    }
+
+
+def _unique_locations(values: Iterable[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    """Collapse one coordinate repeated once per detected weed class."""
+
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for value in values:
+        key = tuple(value.get(name) for name in ("latitude", "longitude", "accuracy_m", "source", "timestamp"))
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+    return tuple(result)
 
 
 __all__ = ["NO_POSITION_MESSAGE", "WeedObservationStore", "WeedRunRecord"]

@@ -69,7 +69,7 @@ export function HomePage({ onNavigate, capabilities }) {
         <span><kbd>3</kbd> Weeds</span>
         <span><kbd>A</kbd> Ask</span>
         <span><kbd>H</kbd> Home</span>
-        <span><kbd>?</kbd> Help</span>
+        <span><kbd>F1</kbd> Help</span>
       </div>
 
       <span className="foliage left">

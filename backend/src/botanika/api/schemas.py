@@ -48,6 +48,10 @@ class LibraryListResponse(BaseModel):
     groups: list[dict[str, Any]] = Field(default_factory=list)
     progress: dict[str, Any] = Field(default_factory=dict)
     aggregate: dict[str, Any] = Field(default_factory=dict)
+    map: dict[str, Any] = Field(default_factory=dict)
+    map_legend: list[dict[str, Any]] = Field(default_factory=list)
+    regional_catalog: dict[str, Any] = Field(default_factory=dict)
+    regional_checklist: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PositionRequest(BaseModel):

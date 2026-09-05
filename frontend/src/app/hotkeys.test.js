@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  findShortcutTarget,
   isDialogTarget,
   isEditableTarget,
   isShortcutBlocked,
+  normalizeShortcutKey,
   shortcutAction,
 } from "./hotkeys.js";
 
@@ -15,7 +17,55 @@ test("app shortcuts map to the kiosk destinations", () => {
   assert.equal(shortcutAction("A"), "ask");
   assert.equal(shortcutAction("H"), "home");
   assert.equal(shortcutAction("Escape"), "home");
+  assert.equal(shortcutAction("F1"), "help");
+  assert.equal(shortcutAction("?"), null);
   assert.equal(shortcutAction("x"), null);
+});
+
+test("browser key values normalize consistently for controls", () => {
+  assert.equal(normalizeShortcutKey({ key: " ", code: "Space" }), "space");
+  assert.equal(normalizeShortcutKey("Space"), "space");
+  assert.equal(normalizeShortcutKey("Esc"), "escape");
+  assert.equal(normalizeShortcutKey("F1"), "f1");
+  assert.equal(normalizeShortcutKey({ code: "KeyL" }), "l");
+  assert.equal(normalizeShortcutKey({ code: "Digit2" }), "2");
+});
+
+test("page controls are resolved by their advertised shortcut", () => {
+  const clicked = [];
+  const controls = [
+    {
+      dataset: { hotkey: "L" },
+      disabled: false,
+      getAttribute: () => null,
+      click: () => clicked.push("local"),
+    },
+    {
+      dataset: { hotkey: "S" },
+      disabled: true,
+      getAttribute: () => null,
+      click: () => clicked.push("disabled"),
+    },
+  ];
+  const documentLike = { querySelectorAll: () => controls };
+  const target = findShortcutTarget({ key: "l" }, documentLike);
+  assert.equal(target, controls[0]);
+  target.click();
+  assert.deepEqual(clicked, ["local"]);
+  assert.equal(findShortcutTarget({ key: "s" }, documentLike), null);
+});
+
+test("controls inside a dialog are not eligible for page shortcuts", () => {
+  const dialog = { tagName: "DIALOG", parentElement: null };
+  const control = {
+    tagName: "button",
+    parentElement: dialog,
+    dataset: { hotkey: "S" },
+    disabled: false,
+    getAttribute: () => null,
+    click: () => {},
+  };
+  assert.equal(findShortcutTarget({ key: "s" }, { querySelectorAll: () => [control] }), null);
 });
 
 test("typing targets and contenteditable regions are protected", () => {

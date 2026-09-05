@@ -107,6 +107,12 @@ class Phase9ExtraTests(unittest.TestCase):
             self.assertTrue(result["position_available"])
             self.assertEqual(observations.count(), 2)
             self.assertEqual(observations.run_count(), 1)
+            runs = observations.list_runs()
+            self.assertEqual(len(runs), 1)
+            self.assertEqual(len(runs[0].to_dict()["locations"]), 1)
+            self.assertEqual(runs[0].to_dict()["locations"][0]["latitude"], 18.5)
+            self.assertEqual(runs[0].to_dict()["locations"][0]["longitude"], 73.8)
+            self.assertFalse(runs[0].to_dict()["image_persisted"])
             with observations.database.transaction(immediate=False) as connection:
                 stored = connection.execute("SELECT detections_json FROM weed_runs").fetchone()[0]
             self.assertNotIn("x1", stored)

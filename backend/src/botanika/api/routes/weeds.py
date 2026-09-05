@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
+from fastapi.responses import JSONResponse
 
 from botanika.api.auth import require_local_operator, require_local_or_controller
 from botanika.api.concurrency import run_blocking
@@ -67,7 +68,12 @@ async def detect_controller_frame(
     position_source: str | None = Form(default=None),
     position_timestamp: float | None = Form(default=None),
 ) -> dict[str, Any]:
-    """Analyze one still from the paired browser, with optional accurate position."""
+    """Analyze one transient still from the paired browser.
+
+    The upload is decoded in memory and discarded after inference. Only a
+    positive supported detection with an accurate position can create a
+    coordinate-only weed observation.
+    """
 
     runtime = get_runtime(request)
     require_local_or_controller(runtime, request)
@@ -88,6 +94,52 @@ async def detect_controller_frame(
         return await run_blocking(runtime.weeds.detect_bytes, payload, position=position)
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         raise ValidationError(str(exc)) from exc
+
+
+@router.get("/runs")
+async def weed_runs(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any]:
+    """List coordinate-only positive weed runs for the phone map/library."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    store = runtime.weed_observations
+    if store is None:
+        return {"runs": [], "total": 0, "image_persistence": "disabled"}
+    runs = [run.to_dict() for run in store.list_runs(limit=limit)]
+    return {
+        "runs": runs,
+        "total": len(runs),
+        "image_persistence": "disabled",
+        "coordinate_only": True,
+    }
+
+
+@router.get("/export")
+async def export_weed_runs(
+    request: Request,
+    limit: int = Query(default=500, ge=1, le=5000),
+) -> JSONResponse:
+    """Download a portable JSON map dataset without exposing image bytes."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    store = runtime.weed_observations
+    runs = [run.to_dict() for run in store.list_runs(limit=limit)] if store is not None else []
+    return JSONResponse(
+        content={
+            "format": "botanika-weed-observations-1",
+            "coordinate_only": True,
+            "image_persistence": "disabled",
+            "runs": runs,
+        },
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": 'attachment; filename="botanika-weed-observations.json"',
+        },
+    )
 
 
 def _position_from_form(

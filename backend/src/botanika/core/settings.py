@@ -14,6 +14,7 @@ BACKEND_SOURCE = PROJECT_ROOT / "backend" / "src"
 DEFAULT_MANIFEST = PROJECT_ROOT / "config" / "models" / "yolo11n-coco.json"
 DEFAULT_QUALITY_CONFIG = PROJECT_ROOT / "config" / "vision" / "phase3-quality-baseline.json"
 DEFAULT_SPECIES_CATALOG = PROJECT_ROOT / "config" / "catalog" / "india-starter-species.json"
+DEFAULT_REGIONAL_CATALOG = PROJECT_ROOT / "config" / "catalog" / "vellore-regional-flora.json"
 DEFAULT_CLASSIFIER_MODEL = PROJECT_ROOT / "models" / "plant_classifier" / "india-starter-feature-v1.json"
 DEFAULT_CAMPUS_CLASSIFIER_MODEL = PROJECT_ROOT / "models" / "plant_classifier" / "campus-fewshot-v1.json"
 DEFAULT_EMBEDDING_MODEL = PROJECT_ROOT / "models" / "embeddings" / "mobilenetv2-10-embedding.onnx"
@@ -83,6 +84,10 @@ class AppSettings:
     # Phase 6 catalog/model release. The artifact is loaded once by the scan
     # owner; a missing or invalid artifact is an honest unavailable state.
     species_catalog_path: Path = DEFAULT_SPECIES_CATALOG
+    # Read-only regional reference list; deliberately separate from the
+    # classifier's supported label map so checklist breadth is not an accuracy
+    # claim for the Pi model.
+    regional_catalog_path: Path = DEFAULT_REGIONAL_CATALOG
     classifier_model_path: Path = DEFAULT_CLASSIFIER_MODEL
     campus_classifier_model_path: Path = DEFAULT_CAMPUS_CLASSIFIER_MODEL
     embedding_model_path: Path = DEFAULT_EMBEDDING_MODEL

@@ -18,7 +18,9 @@ from botanika.api.schemas import (
     OkResponse,
 )
 from botanika.core.errors import ControllerAuthorizationError, NotFoundError, ValidationError
+from botanika.knowledge import REGIONAL_CATEGORIES, RegionalCatalogError, load_regional_catalog
 from botanika.mode import PairingAuthenticationError
+from botanika.storage import category_color
 
 
 router = APIRouter(prefix="/library", tags=["library"])
@@ -40,9 +42,12 @@ async def list_records(
         )
     records = runtime.library.list_records(category=category)
     groups = runtime.library.list_grouped(category=category)
+    locations = runtime.library.list_locations(category=category)
     usage = runtime.library.usage()
     progress = runtime.library.progress(runtime.knowledge.catalog.species)
     aggregate = runtime.library.aggregate_summary(runtime.knowledge.catalog.species)
+    regional = _regional_payload(runtime, records, groups)
+    map_payload = _map_payload(locations, regional_catalog=regional["catalog"])
     payload = [_record_payload(record) for record in records]
     return LibraryListResponse(
         records=payload,
@@ -52,10 +57,15 @@ async def list_records(
         observation_count=len(payload),
         categories=runtime.library.categories(),
         coverage={
-            "location_available": False,
-            "message": "Location unavailable — discoveries are still saved.",
+            "location_available": bool(locations),
+            "message": (
+                f"{len(locations)} observation location(s) recorded."
+                if locations
+                else "Location unavailable — discoveries are still saved."
+            ),
             "species": len(groups),
             "observations": len(payload),
+            "locations": len(locations),
             "storage_bytes": usage["bytes"],
             "supported_species": progress["supported_species"],
             "discovered_species": progress["discovered_species"],
@@ -64,7 +74,97 @@ async def list_records(
         groups=[_group_payload(group) for group in groups],
         progress=progress,
         aggregate=aggregate,
+        map=map_payload,
+        map_legend=map_payload["legend"],
+        regional_catalog=regional["catalog"],
+        regional_checklist=regional["species"],
     )
+
+
+@router.get("/map")
+async def library_map(request: Request) -> dict[str, Any]:
+    """Return observation markers and an accessible category legend."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    if runtime.settings.legacy_demo_mode:
+        return {
+            "locations": [],
+            "total": 0,
+            "has_locations": False,
+            "message": "Map locations are available for real discoveries only.",
+            "legend": [],
+        }
+    regional = _load_regional(runtime)
+    locations = runtime.library.list_locations()
+    return _map_payload(locations, regional_catalog=regional)
+
+
+@router.get("/map/export")
+async def export_library_map(request: Request) -> dict[str, Any]:
+    """Export map markers as portable JSON without exposing media files."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    if runtime.settings.legacy_demo_mode:
+        return {
+            "format": "botanika-plant-map-1",
+            "locations": [],
+            "legend": [],
+            "message": "Map export is available for real discoveries only.",
+        }
+    regional = _load_regional(runtime)
+    payload = _map_payload(runtime.library.list_locations(), regional_catalog=regional)
+    return {
+        "format": "botanika-plant-map-1",
+        "region": payload["region"],
+        "scope_note": payload["scope_note"],
+        "legend": payload["legend"],
+        "locations": payload["locations"],
+    }
+
+
+@router.get("/region")
+async def regional_library_catalog(request: Request) -> dict[str, Any]:
+    """Return found/not-found status against the wider Vellore checklist."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    if runtime.settings.legacy_demo_mode:
+        return {
+            "catalog": {},
+            "species": [],
+            "total": 0,
+            "found": 0,
+            "not_found": 0,
+        }
+    records = runtime.library.list_records()
+    groups = runtime.library.list_grouped()
+    regional = _regional_payload(runtime, records, groups)
+    value = dict(regional)
+    value["total"] = len(regional["species"])
+    value["found"] = sum(1 for item in regional["species"] if item["status"] == "found")
+    value["not_found"] = value["total"] - value["found"]
+    return value
+
+
+@router.get("/species/{species_id}")
+async def library_species_details(request: Request, species_id: str) -> dict[str, Any]:
+    """Return one deduplicated species entry with all observations/locations."""
+
+    runtime = get_runtime(request)
+    require_local_or_controller(runtime, request)
+    if runtime.settings.legacy_demo_mode:
+        raise NotFoundError("species details are available for real discoveries only")
+    groups = runtime.library.list_grouped()
+    group = next((item for item in groups if item.get("species_id") == species_id), None)
+    if group is not None:
+        return _group_payload(group)
+    regional = _regional_payload(runtime, [], groups)
+    checklist = next((item for item in regional["species"] if item.get("species_id") == species_id), None)
+    if checklist is None:
+        raise NotFoundError("species is not in the local library or regional checklist")
+    return checklist
 
 
 @router.get("/progress")
@@ -233,7 +333,103 @@ def _group_payload(group: dict[str, Any]) -> dict[str, Any]:
         if relative:
             newest["thumbnail_url"] = "/media/discoveries/" + str(relative)
         value["newest"] = newest
+    observations = []
+    for observation in value.get("observations", []):
+        if not isinstance(observation, dict):
+            continue
+        item = dict(observation)
+        relative = item.get("thumbnail_path") or item.get("crop_relative_path")
+        if relative:
+            item["thumbnail_url"] = "/media/discoveries/" + str(relative)
+        observations.append(item)
+    if observations:
+        value["observations"] = observations
     return value
+
+
+def _load_regional(runtime) -> dict[str, Any]:
+    try:
+        return load_regional_catalog(runtime.settings.regional_catalog_path)
+    except RegionalCatalogError as exc:
+        raise ValidationError(f"regional catalog unavailable: {exc}") from exc
+
+
+def _regional_payload(runtime, records, groups) -> dict[str, Any]:
+    catalog = _load_regional(runtime)
+    groups_by_id = {str(item.get("species_id")): item for item in groups}
+    classifier_ids = {item.species_id for item in runtime.knowledge.catalog.species}
+    sources_by_id = {str(item["source_id"]): dict(item) for item in catalog["sources"]}
+    species: list[dict[str, Any]] = []
+    for item in catalog["species"]:
+        value = dict(item)
+        group = groups_by_id.get(str(item["species_id"]))
+        public_group = _group_payload(group) if group else None
+        observations = list(public_group.get("observations", [])) if public_group else []
+        locations = list(public_group.get("locations", [])) if public_group else []
+        value["status"] = "found" if group else "not_found"
+        value["found"] = bool(group)
+        value["observation_count"] = len(observations)
+        value["location_count"] = len(locations)
+        value["locations"] = locations
+        value["observations"] = observations
+        value["photos"] = [
+            observation.get("thumbnail_url") or observation.get("crop_url")
+            for observation in observations
+            if observation.get("thumbnail_url") or observation.get("crop_url")
+        ]
+        value["category_color"] = category_color(str(item["category"]))
+        value["classifier_supported"] = str(item["species_id"]) in classifier_ids
+        value["source_details"] = [
+            sources_by_id[source_id]
+            for source_id in item.get("source_ids", [])
+            if source_id in sources_by_id
+        ]
+        species.append(value)
+    return {
+        "catalog": {
+            "catalog_id": catalog["catalog_id"],
+            "version": catalog["version"],
+            "region": catalog["region"],
+            "scope_note": catalog["scope_note"],
+            "occurrence_basis": catalog.get("occurrence_basis", {}),
+            "digest": catalog["digest"],
+        },
+        "species": sorted(species, key=lambda value: str(value["common_name"]).casefold()),
+    }
+
+
+def _map_payload(locations: list[dict[str, Any]], *, regional_catalog: dict[str, Any]) -> dict[str, Any]:
+    categories = sorted({str(item.get("category") or "Uncategorized") for item in locations})
+    known_categories = list(REGIONAL_CATEGORIES)
+    legend_categories = list(dict.fromkeys(known_categories + categories))
+    legend = [
+        {
+            "category": category,
+            "color": category_color(category),
+            "label": category,
+        }
+        for category in legend_categories
+    ]
+    markers: list[dict[str, Any]] = []
+    for location in locations:
+        marker = dict(location)
+        if marker.get("thumbnail_path"):
+            marker["thumbnail_url"] = "/media/discoveries/" + str(marker["thumbnail_path"])
+        marker["category_color"] = category_color(str(marker.get("category") or ""))
+        markers.append(marker)
+    return {
+        "locations": markers,
+        "total": len(markers),
+        "has_locations": bool(markers),
+        "message": (
+            "Markers are observation coordinates; open directions uses an external map."
+            if markers
+            else "No saved observations include an accurate location yet."
+        ),
+        "legend": legend,
+        "region": regional_catalog.get("region", ""),
+        "scope_note": regional_catalog.get("scope_note", ""),
+    }
 
 
 def _snapshot_for_save(runtime, body, lease):

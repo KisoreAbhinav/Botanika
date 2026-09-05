@@ -23,14 +23,36 @@ On the kiosk or an explicitly paired browser:
 | `3` | Weed Detection when the beta detector is ready |
 | `A` | Ask Botanika |
 | `H` | Home |
-| `Esc` | Home, or close the keyboard-help/diagnostics popover |
-| `?` | Keyboard shortcut help |
+| `Esc` | Home, close help/diagnostics, or cancel an in-progress scan |
+| `F1` | Keyboard shortcut help |
+| `D` | Capability diagnostics |
 | `N` | Toggle SOLO/NETWORKED mode on the local operator kiosk |
+
+Contextual controls advertise their own key only while that control is on the
+current page:
+
+| Key | Action |
+| --- | --- |
+| `Space` | Manual capture (or phone capture) |
+| `L` | Local image / choose weed frame |
+| `C` | Capture from image / apply phone crop |
+| `X` | Clear local-image scan |
+| `S` | Save an accepted result to the library |
+| `R` | Retake / try another view |
+| `G` | Another angle |
+| `Esc` | Cancel an in-progress scan; otherwise home/close |
+| `W` | Analyze the weed frame |
+| `P` | Pause/resume live weed scanning |
+| `E` | Export the library or weed coordinates |
+| `Y` | Show captured plants |
+| `V` | Show the Vellore regional checklist |
+| `I` | Identify a paired-phone crop |
 
 Shortcuts ignore modified keys, auto-repeat, text inputs, selects,
 textareas/contenteditable regions, open dialogs, and page-root events while an
-overlay is open. The help panel and home quick-key strip make the available
-actions discoverable.
+overlay is open. Contextual controls are resolved from the current page, so a
+key never activates a hidden control from another screen. The help panel and
+home quick-key strip make the available actions discoverable.
 
 ## Visual changes
 

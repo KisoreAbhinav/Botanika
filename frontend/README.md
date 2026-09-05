@@ -33,7 +33,9 @@ in-flight request limit, no SSE), so the remote flow uses polling and uploads.
 - `src/features/ask` — grounded offline catalog chat with citations, explicit
   evidence abstention, and Pi-local voice controls.
 - `src/features/weeds` — independent multi-box weed-beta workflow for SOLO and
-  one captured paired-browser frame; image persistence stays disabled.
+  the paired browser. Secure phone origins own a live camera preview and send
+  bounded, non-overlapping JPEG samples; insecure origins retain the native
+  still-capture fallback. Image persistence stays disabled.
 - `src/platform/api.js` — the only module that talks to `/api/v1`.
 - `qrcode` — open-source local QR rendering; no third-party QR image API is
   contacted.
@@ -65,5 +67,7 @@ Run the whole service with `../tools/run_api.py`. The kiosk expects the built
 Phase 6 runtime results use the catalog classifier and never carry that flag;
   the current unvalidated release abstains and disables Save to Library until
   measured deployment evidence is recorded.
-- Browser geolocation is requested only after an explicit paired-browser save;
-  unavailable, denied, or inaccurate coordinates never block the save.
+- Browser geolocation is requested only for an explicit paired-browser save or
+  a live weed sample. Unavailable, denied, or inaccurate coordinates never
+  block inference, and weed persistence is skipped unless a validated fix is
+  available.

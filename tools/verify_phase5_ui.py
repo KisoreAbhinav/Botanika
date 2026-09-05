@@ -186,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
         assert weed_card is not None and weed_icon is not None
         assert weed_icon["y"] >= weed_card["y"]
         assert weed_icon["y"] + weed_icon["height"] <= weed_card["y"] + weed_card["height"]
-        page.keyboard.press("?")
+        page.keyboard.press("F1")
         page.wait_for_selector(".shortcuts-pop")
         page.keyboard.press("1")
         assert page.locator(".home").is_visible()

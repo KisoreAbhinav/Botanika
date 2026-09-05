@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { classifyControllerCrop, saveToLibrary } from "../../platform/api.js";
 import { cameraAccessMode, canRequestPosition, positionPayload } from "./browserCapabilities.js";
+import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
 /**
  * The paired browser owns this camera element. Only the accepted still crop is
@@ -222,18 +223,67 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
                 onChange={(event) => setCropMargin(Number(event.target.value))}
               />
             </label>
-            <button type="button" className="btn quiet" onClick={reapplyManualCrop} disabled={busy}>
-              Apply crop
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={reapplyManualCrop}
+              disabled={busy}
+              data-hotkey={CONTROL_SHORTCUTS.applyCrop}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.applyCrop}
+            >
+              Apply crop <kbd aria-hidden="true">C</kbd>
             </button>
           </div>
         )}
         <canvas ref={canvasRef} className="visually-hidden" aria-hidden="true" />
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="visually-hidden" onChange={chooseFile} aria-label="Open the phone camera or choose a local plant image" />
         <div className="networked-camera-actions">
-          {!pending && cameraState === "ready" && <button type="button" className="btn green mobile-primary" onClick={captureVideo}>Capture crop</button>}
-          {!pending && <button type="button" className="btn quiet" onClick={() => fileRef.current?.click()}>{cameraState === "ready" ? "Use a photo" : "Open camera"}</button>}
-          {pending && !classification && <button type="button" className="btn green mobile-primary" onClick={classify} disabled={busy || !quality?.ready}>{busy ? "Sending crop…" : "Identify this crop"}</button>}
-          {pending && <button type="button" className="btn quiet" onClick={clear} disabled={busy}>Retake</button>}
+          {!pending && cameraState === "ready" && (
+            <button
+              type="button"
+              className="btn green mobile-primary"
+              onClick={captureVideo}
+              data-hotkey={CONTROL_SHORTCUTS.phoneCapture}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.phoneCapture}
+            >
+              Capture crop <kbd aria-hidden="true">Space</kbd>
+            </button>
+          )}
+          {!pending && (
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={() => fileRef.current?.click()}
+              data-hotkey={CONTROL_SHORTCUTS.localImage}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.localImage}
+            >
+              {cameraState === "ready" ? "Use a photo" : "Open camera"} <kbd aria-hidden="true">L</kbd>
+            </button>
+          )}
+          {pending && !classification && (
+            <button
+              type="button"
+              className="btn green mobile-primary"
+              onClick={classify}
+              disabled={busy || !quality?.ready}
+              data-hotkey={CONTROL_SHORTCUTS.identifyCrop}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.identifyCrop}
+            >
+              {busy ? "Sending crop…" : "Identify this crop"} <kbd aria-hidden="true">I</kbd>
+            </button>
+          )}
+          {pending && (
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={clear}
+              disabled={busy}
+              data-hotkey={CONTROL_SHORTCUTS.retake}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.retake}
+            >
+              Retake <kbd aria-hidden="true">R</kbd>
+            </button>
+          )}
         </div>
         {quality && <p className={`local-quality ${quality.ready ? "ready" : "warning"}`}>{quality.message}</p>}
         <p className="networked-privacy-note">Only the accepted {pending ? "crop" : "still crop"} is uploaded. Continuous phone video never reaches the Pi.</p>
@@ -252,11 +302,20 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
               <div><dt>Family</dt><dd>{result.family}</dd></div>
               <div><dt>Details</dt><dd>{result.short_notes}</dd></div>
             </dl>
-            <button type="button" className="btn green mobile-primary" onClick={save} disabled={saveBusy}>{saveBusy ? "Saving…" : "Save to Pi library"}</button>
+            <button
+              type="button"
+              className="btn green mobile-primary"
+              onClick={save}
+              disabled={saveBusy}
+              data-hotkey={CONTROL_SHORTCUTS.saveToLibrary}
+              aria-keyshortcuts={CONTROL_SHORTCUTS.saveToLibrary}
+            >
+              {saveBusy ? "Saving…" : <>Save to Pi library <kbd aria-hidden="true">S</kbd></>}
+            </button>
           </>
         )}
-        {result?.status === "uncertain" && <><h2>Not confident</h2><p>{result.short_notes || "Try another angle or a clearer crop."}</p><button type="button" className="btn quiet" onClick={clear}>Try another view</button></>}
-        {result && !["accepted", "uncertain"].includes(result.status) && <><h2>Pi classifier unavailable</h2><p>{result.error || "No result was produced."}</p><button type="button" className="btn quiet" onClick={classify} disabled={busy}>Retry crop upload</button></>}
+        {result?.status === "uncertain" && <><h2>Not confident</h2><p>{result.short_notes || "Try another angle or a clearer crop."}</p><button type="button" className="btn quiet" onClick={clear} data-hotkey={CONTROL_SHORTCUTS.tryAnotherView} aria-keyshortcuts={CONTROL_SHORTCUTS.tryAnotherView}>Try another view <kbd aria-hidden="true">R</kbd></button></>}
+        {result && !["accepted", "uncertain"].includes(result.status) && <><h2>Pi classifier unavailable</h2><p>{result.error || "No result was produced."}</p><button type="button" className="btn quiet" onClick={classify} disabled={busy} data-hotkey={CONTROL_SHORTCUTS.identifyCrop} aria-keyshortcuts={CONTROL_SHORTCUTS.identifyCrop}>Retry crop upload <kbd aria-hidden="true">I</kbd></button></>}
         {error && <p className="mode-error" role="alert">{error}</p>}
       </section>
     </div>

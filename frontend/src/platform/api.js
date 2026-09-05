@@ -125,6 +125,18 @@ export function fetchLibrary() {
   return request("/library/records");
 }
 
+export function fetchLibraryMap() {
+  return request("/library/map");
+}
+
+export function fetchRegionalLibrary() {
+  return request("/library/region");
+}
+
+export function fetchLibrarySpecies(speciesId) {
+  return request(`/library/species/${encodeURIComponent(speciesId)}`);
+}
+
 export function fetchLibraryProgress() {
   return request("/library/progress");
 }
@@ -139,6 +151,40 @@ export function fetchVoiceStatus() {
 
 export function fetchWeedStatus() {
   return request("/weeds/status");
+}
+
+export function fetchWeedRuns(limit = 100) {
+  const bounded = Math.max(1, Math.min(500, Number(limit) || 100));
+  return request(`/weeds/runs?limit=${bounded}`);
+}
+
+export async function downloadWeedExport() {
+  const headers = new Headers();
+  const token = getControllerToken();
+  if (token) headers.set("X-Botanika-Controller-Token", token);
+  let response;
+  try {
+    response = await fetch(`${BASE}/weeds/export`, { headers });
+  } catch {
+    throw new ApiError("The local service is not reachable.", 0);
+  }
+  if (!response.ok) {
+    let detail = `Request failed (${response.status}).`;
+    try {
+      const problem = await response.json();
+      if (problem?.detail) detail = problem.detail;
+    } catch {
+      /* keep default detail */
+    }
+    throw new ApiError(detail, response.status);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "botanika-weed-observations.json";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function listenBotanika() {

@@ -34,6 +34,7 @@ satisfy the deployment gate.
 - [Phase 7 private Wi-Fi report](docs/PHASE7_PRIVATE_WIFI_REPORT_2026-09-03.md)
 - [Phase 8 pairing and responsive client report](docs/PHASE8_RESPONSIVE_PAIRING_REPORT_2026-09-03.md)
 - [Phase 9 extras and hardening report](docs/PHASE9_EXTRAS_AND_HARDENING_REPORT_2026-09-03.md)
+- [Cross-network Quick Tunnel and phone weed evidence](docs/PHASE9_CROSS_NETWORK_QUICK_TUNNEL_AND_PHONE_WEEDS.md)
 - [Deferred final operator acceptance](docs/DEFERRED_OPERATOR_ACCEPTANCE.md)
 - [Repository structure](docs/REPOSITORY_STRUCTURE.md)
 - [Architecture decisions](docs/decisions/README.md)

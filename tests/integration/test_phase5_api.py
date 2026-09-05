@@ -464,7 +464,9 @@ class Phase5ApiContractTest(unittest.TestCase):
     def test_cloudflare_proxy_headers_keep_tunnel_callers_remote(self):
         # ASGITransport's default peer is loopback, matching cloudflared's
         # local hop. Valid Cloudflare markers must still make this remote:
-        # status redacts the invitation and operator POSTs fail.
+        # status redacts the invitation and operator POSTs fail. The paired
+        # data/classifier calls below model a phone on a different network;
+        # cloudflared is not started inside this deterministic ASGI test.
         self.assertEqual(self.client.post("/api/v1/mode/toggle").status_code, 200)
         headers = {
             "CF-Connecting-IP": "198.51.100.22",
@@ -480,6 +482,61 @@ class Phase5ApiContractTest(unittest.TestCase):
         self.assertEqual(takeover.status_code, 401)
         network = self.client.get("/api/v1/network/status", headers=headers)
         self.assertEqual(network.status_code, 401)
+
+        code = self.client.get("/api/v1/mode/status").json()["pairing"]["code"]
+        paired = self.client.post(
+            "/api/v1/mode/pair",
+            headers=headers,
+            json={"code": code, "device_name": "Internet phone", "client_id": "wan-phone"},
+        )
+        self.assertEqual(paired.status_code, 200)
+        token = paired.json()["session_token"]
+        controller_headers = {
+            **headers,
+            "X-Botanika-Controller-Token": token,
+        }
+        # A loopback peer plus Cloudflare markers must not be treated as the
+        # Pi operator, while the active paired lease can read Pi-owned data.
+        self.assertEqual(
+            self.client.get("/api/v1/library/records", headers=controller_headers).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get("/api/v1/weeds/runs", headers=controller_headers).status_code,
+            200,
+        )
+        export = self.client.get("/api/v1/weeds/export", headers=controller_headers)
+        self.assertEqual(export.status_code, 200)
+        self.assertIn("attachment", export.headers.get("content-disposition", ""))
+        self.assertTrue(export.json()["coordinate_only"])
+        self.assertNotIn("frame_data_url", export.text)
+        self.assertEqual(
+            self.client.stranger_get("/api/v1/weeds/runs", headers=headers).status_code,
+            401,
+        )
+        # The same origin serves the classifier endpoint through the tunnel;
+        # this crop is intentionally a bounded still, not a live stream.
+        import cv2
+        import hashlib
+        import numpy as np
+
+        image = np.full((24, 32, 3), 120, dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", image)
+        self.assertTrue(ok)
+        payload = encoded.tobytes()
+        crop = self.client.post(
+            "/api/v1/mode/controller/crop",
+            headers=controller_headers,
+            files={"file": ("sample.png", payload, "image/png")},
+            data={
+                "crop_hash": hashlib.sha256(payload).hexdigest(),
+                "width": "32",
+                "height": "24",
+                "client_request_id": "wan-crop",
+            },
+        )
+        self.assertEqual(crop.status_code, 200)
+        self.assertEqual(crop.json()["request_id"], "wan-crop")
 
 
 class Phase6ApiContractTest(unittest.TestCase):

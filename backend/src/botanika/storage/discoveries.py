@@ -58,6 +58,16 @@ class LibraryRecord:
     thumbnail_path: str | None = None
     is_stub: bool = False
     demo_label: str = ""
+    # The fields below are additive so old databases and callers remain
+    # compatible.  They are hydrated from the normalized catalog/positioning
+    # tables when a record is read; no botanical facts are copied into user
+    # content by the save path.
+    region: str = ""
+    aliases: tuple[str, ...] = ()
+    assessments: tuple[dict[str, Any], ...] = ()
+    image_views: tuple[str, ...] = ()
+    source_details: tuple[dict[str, Any], ...] = ()
+    locations: tuple[dict[str, Any], ...] = ()
 
     @property
     def observation_id(self) -> str:
@@ -99,6 +109,13 @@ class LibraryRecord:
             "thumbnail_path": self.thumbnail_path,
             "is_stub": self.is_stub,
             "demo_label": self.demo_label,
+            "region": self.region,
+            "aliases": list(self.aliases),
+            "assessments": [dict(item) for item in self.assessments],
+            "image_views": list(self.image_views),
+            "source_details": [dict(item) for item in self.source_details],
+            "locations": [dict(item) for item in self.locations],
+            "location_count": len(self.locations),
         }
 
 
@@ -177,6 +194,7 @@ class DiscoveryLibrary:
         observed = self._clock() if observed_at is None else float(observed_at)
         if not math.isfinite(observed) or observed < 0:
             raise ValueError("observed_at must be a finite non-negative timestamp")
+        normalized_position = _normalize_position(position, observed)
 
         image = cv2.imread(str(capture.path), cv2.IMREAD_COLOR)
         if image is None or image.ndim != 3 or image.shape[0] <= 0 or image.shape[1] <= 0:
@@ -185,6 +203,15 @@ class DiscoveryLibrary:
         crop_hash = _sha256(capture.path)
         duplicate = self._find_recent_duplicate(crop_hash)
         if duplicate is not None:
+            # A repeated upload of the same crop at a new place is still a
+            # single photo/observation, but its distinct position must not be
+            # lost to the rapid-save hash de-duplication guard.
+            if normalized_position is not None and not self._has_equivalent_location(
+                duplicate.id, normalized_position
+            ):
+                with self.database.transaction() as connection:
+                    _insert_position(connection, duplicate.id, normalized_position, observed)
+                return self.get(duplicate.id) or duplicate
             return duplicate
         thumbnail_bytes = _thumbnail_bytes(image)
         self._check_quota(crop_size + len(thumbnail_bytes))
@@ -281,8 +308,8 @@ class DiscoveryLibrary:
                     """,
                     (record.species_id, record.observed_at, record.observed_at),
                 )
-                if position is not None:
-                    _insert_position(connection, record.id, position, record.observed_at)
+                if normalized_position is not None:
+                    _insert_position(connection, record.id, normalized_position, record.observed_at)
         except Exception:
             destination.unlink(missing_ok=True)
             thumbnail_destination.unlink(missing_ok=True)
@@ -293,7 +320,10 @@ class DiscoveryLibrary:
                 staging_dir.rmdir()
             except OSError:
                 pass
-        return record
+        # Rehydrate the committed row so callers (including the phone client)
+        # receive its normalized catalog details and any saved location in the
+        # same response as the save acknowledgement.
+        return self.get(record.id) or record
 
     def list_records(
         self,
@@ -353,12 +383,59 @@ class DiscoveryLibrary:
                     "conservation_status": newest.conservation_status,
                     "ecology": newest.ecology,
                     "short_notes": newest.short_notes,
+                    "region": newest.region,
+                    "aliases": list(newest.aliases),
+                    "assessments": [dict(item) for item in newest.assessments],
+                    "image_views": list(newest.image_views),
+                    "source_details": [dict(item) for item in newest.source_details],
                     "observation_count": len(records),
+                    "photo_count": sum(1 for item in records if item.crop_path.is_file()),
                     "newest": newest.to_dict(),
                     "observations": [item.to_dict() for item in records],
+                    "locations": [
+                        dict(location)
+                        for item in records
+                        for location in item.locations
+                    ],
+                    "category_color": category_color(newest.category),
                 }
             )
         return sorted(values, key=lambda item: str(item["common_name"]).lower())
+
+    def list_locations(
+        self,
+        *,
+        category: str | None = None,
+        species_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return every saved plant observation that has a validated position.
+
+        Coordinates intentionally remain observation-level data.  Repeated
+        species therefore still produce one species group in the library but
+        can render multiple map markers and map links.
+        """
+
+        locations: list[dict[str, Any]] = []
+        for record in self.list_records(category=category, species_id=species_id):
+            for location in record.locations:
+                value = dict(location)
+                value.update(
+                    {
+                        "observation_id": record.id,
+                        "species_id": record.species_id,
+                        "common_name": record.common_name,
+                        "scientific_name": record.scientific_name,
+                        "category": record.category,
+                        "category_color": category_color(record.category),
+                        "thumbnail_path": record.thumbnail_path,
+                    }
+                )
+                locations.append(value)
+        return sorted(
+            locations,
+            key=lambda item: float(item.get("captured_at") or 0.0),
+            reverse=True,
+        )
 
     def categories(self) -> list[str]:
         with self.database.transaction(immediate=False) as connection:
@@ -911,6 +988,7 @@ class DiscoveryLibrary:
     def _record_from_row(self, row: sqlite3.Row) -> LibraryRecord:
         snapshot = json.loads(str(row["result_snapshot"]))
         result_sources = snapshot.get("sources") or []
+        enrichment = self._species_enrichment(str(row["species_id"]))
         return LibraryRecord(
             id=str(row["observation_id"]),
             species_id=str(row["species_id"]),
@@ -936,7 +1014,85 @@ class DiscoveryLibrary:
             sources=tuple(str(item) for item in result_sources),
             note=(str(row["note"]) if row["note"] is not None else None),
             thumbnail_path=(str(row["thumbnail_path"]) if row["thumbnail_path"] else None),
+            region=enrichment["region"],
+            aliases=enrichment["aliases"],
+            assessments=enrichment["assessments"],
+            image_views=enrichment["image_views"],
+            source_details=enrichment["source_details"],
+            locations=self._observation_locations(str(row["observation_id"])),
         )
+
+    def _species_enrichment(self, species_id: str) -> dict[str, Any]:
+        """Read catalog facts that are not duplicated in discovery rows."""
+
+        with self.database.transaction(immediate=False) as connection:
+            species = connection.execute(
+                "SELECT region, image_views FROM species WHERE species_id = ?",
+                (species_id,),
+            ).fetchone()
+            aliases = connection.execute(
+                "SELECT alias FROM species_aliases WHERE species_id = ? ORDER BY alias",
+                (species_id,),
+            ).fetchall()
+            assessments = connection.execute(
+                """
+                SELECT authority, status, assessment_url, assessed_at, notes
+                FROM conservation_assessments WHERE species_id = ? ORDER BY authority
+                """,
+                (species_id,),
+            ).fetchall()
+            sources = connection.execute(
+                """
+                SELECT DISTINCT s.source_id, s.title, s.publisher, s.url, s.license,
+                       s.license_url, s.retrieved_at, s.source_type
+                FROM sources s
+                JOIN species_sources ss ON ss.source_id = s.source_id
+                WHERE ss.species_id = ?
+                ORDER BY s.title
+                """,
+                (species_id,),
+            ).fetchall()
+        image_views: tuple[str, ...] = ()
+        region = ""
+        if species is not None:
+            region = str(species["region"] or "")
+            try:
+                value = json.loads(str(species["image_views"] or "[]"))
+                if isinstance(value, list):
+                    image_views = tuple(str(item) for item in value if str(item).strip())
+            except (TypeError, json.JSONDecodeError):
+                image_views = ()
+        return {
+            "region": region,
+            "aliases": tuple(str(row["alias"]) for row in aliases),
+            "assessments": tuple(dict(row) for row in assessments),
+            "image_views": image_views,
+            "source_details": tuple(dict(row) for row in sources),
+        }
+
+    def _observation_locations(self, observation_id: str) -> tuple[dict[str, Any], ...]:
+        with self.database.transaction(immediate=False) as connection:
+            rows = connection.execute(
+                """
+                SELECT sample_id, observation_id, latitude, longitude, accuracy_m,
+                       source, captured_at
+                FROM positioning_samples
+                WHERE observation_id = ? ORDER BY captured_at ASC
+                """,
+                (observation_id,),
+            ).fetchall()
+        return tuple(_location_payload(dict(row)) for row in rows)
+
+    def _has_equivalent_location(self, observation_id: str, position: dict[str, Any]) -> bool:
+        with self.database.transaction(immediate=False) as connection:
+            row = connection.execute(
+                """
+                SELECT 1 FROM positioning_samples
+                WHERE observation_id = ? AND latitude = ? AND longitude = ? LIMIT 1
+                """,
+                (observation_id, position["latitude"], position["longitude"]),
+            ).fetchone()
+        return row is not None
 
     def _unlink_managed(self, relative_path: str) -> None:
         path = (self.media_dir / _validated_relative(relative_path)).resolve()
@@ -955,6 +1111,48 @@ def _catalog_value(item: Any) -> dict[str, str]:
     }
 
 
+# Stable, high-contrast colors are part of the API contract so the kiosk and a
+# future phone client render the same category legend.  The map also exposes
+# the category text, so color is never the sole differentiator.
+CATEGORY_COLORS: dict[str, str] = {
+    "Indian native": "#3f7d52",
+    "Western Ghats native": "#287c78",
+    "Cultivated / naturalized": "#a56a24",
+    "Ornamental / cultivated": "#5f68a9",
+    "Invasive / introduced": "#b44949",
+}
+
+
+def category_color(category: str | None) -> str:
+    value = str(category or "").strip()
+    if value in CATEGORY_COLORS:
+        return CATEGORY_COLORS[value]
+    # Keep unknown/campus categories stable without allowing arbitrary CSS
+    # values to enter the response.
+    palette = ("#6f6257", "#6c7e86", "#84704a", "#765b78")
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    return palette[digest[0] % len(palette)]
+
+
+def _location_payload(value: dict[str, Any]) -> dict[str, Any]:
+    """Normalize one stored position and expose safe map actions."""
+
+    latitude = float(value["latitude"])
+    longitude = float(value["longitude"])
+    # Coordinates have already passed SQLite checks and _insert_position
+    # validation.  Keep the links generated here so clients never interpolate
+    # untrusted URL fragments and never receive fabricated turn-by-turn text.
+    coordinate = f"{latitude:.7f},{longitude:.7f}"
+    value["latitude"] = latitude
+    value["longitude"] = longitude
+    value["accuracy_m"] = float(value["accuracy_m"])
+    value["captured_at"] = float(value["captured_at"])
+    value["map_url"] = f"https://www.google.com/maps/search/?api=1&query={coordinate}"
+    value["directions_url"] = f"https://www.google.com/maps/dir/?api=1&destination={coordinate}"
+    value["open_map_label"] = f"Open map at {coordinate}"
+    return value
+
+
 def _percent(numerator: int, denominator: int) -> float:
     if denominator <= 0:
         return 0.0
@@ -962,6 +1160,30 @@ def _percent(numerator: int, denominator: int) -> float:
 
 
 def _insert_position(connection: sqlite3.Connection, observation_id: str, position: dict[str, Any], observed_at: float) -> None:
+    normalized = _normalize_position(position, observed_at)
+    if normalized is None:
+        return
+    connection.execute(
+        """
+        INSERT INTO positioning_samples(
+            sample_id, observation_id, latitude, longitude, accuracy_m, source, captured_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            uuid.uuid4().hex,
+            observation_id,
+            normalized["latitude"],
+            normalized["longitude"],
+            normalized["accuracy_m"],
+            normalized["source"],
+            normalized["timestamp"],
+        ),
+    )
+
+
+def _normalize_position(position: dict[str, Any] | None, observed_at: float) -> dict[str, Any] | None:
+    if position is None:
+        return None
     try:
         latitude = float(position["latitude"])
         longitude = float(position["longitude"])
@@ -979,14 +1201,13 @@ def _insert_position(connection: sqlite3.Connection, observation_id: str, positi
         raise ValueError("position accuracy/source is invalid")
     if not math.isfinite(captured_at) or captured_at < 0:
         raise ValueError("position timestamp is invalid")
-    connection.execute(
-        """
-        INSERT INTO positioning_samples(
-            sample_id, observation_id, latitude, longitude, accuracy_m, source, captured_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (uuid.uuid4().hex, observation_id, latitude, longitude, accuracy, source, captured_at),
-    )
+    return {
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_m": accuracy,
+        "source": source,
+        "timestamp": captured_at,
+    }
 
 
 def _safe_path_component(value: str) -> str:

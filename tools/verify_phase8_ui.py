@@ -73,6 +73,64 @@ def capabilities() -> dict[str, object]:
     return report
 
 
+def library_fixture() -> dict[str, object]:
+    """Exercise the grouped-library map and regional view without real user data."""
+
+    legend = [
+        {"category": "Indian native", "color": "#3f7d52", "label": "Indian native"},
+        {"category": "Invasive / introduced", "color": "#b44949", "label": "Invasive / introduced"},
+    ]
+    locations = [
+        {
+            "sample_id": "map-1", "observation_id": "observation-1",
+            "species_id": "in:ficus-benghalensis", "common_name": "Banyan",
+            "scientific_name": "Ficus benghalensis", "category": "Indian native",
+            "category_color": "#3f7d52", "latitude": 12.9165, "longitude": 79.1325,
+            "accuracy_m": 8.0, "captured_at": 1788364800.0,
+            "map_url": "https://www.google.com/maps/search/?api=1&query=12.9165,79.1325",
+            "directions_url": "https://www.google.com/maps/dir/?api=1&destination=12.9165,79.1325",
+        },
+        {
+            "sample_id": "map-2", "observation_id": "observation-2",
+            "species_id": "in:lantana-camara", "common_name": "Lantana",
+            "scientific_name": "Lantana camara", "category": "Invasive / introduced",
+            "category_color": "#b44949", "latitude": 12.9210, "longitude": 79.1390,
+            "accuracy_m": 12.0, "captured_at": 1788364900.0,
+            "map_url": "https://www.google.com/maps/search/?api=1&query=12.921,79.139",
+            "directions_url": "https://www.google.com/maps/dir/?api=1&destination=12.921,79.139",
+        },
+    ]
+    regional = [
+        {
+            "species_id": "in:ficus-benghalensis", "common_name": "Banyan",
+            "scientific_name": "Ficus benghalensis", "family": "Moraceae",
+            "category": "Indian native", "category_color": "#3f7d52",
+            "status": "found", "observation_count": 2, "short_notes": "Large fig with aerial roots.",
+            "ecology": "Dry-tropical settlement tree.", "native_status": "Native to the Indian subcontinent.",
+        },
+        {
+            "species_id": "in:lantana-camara", "common_name": "Lantana",
+            "scientific_name": "Lantana camara", "family": "Verbenaceae",
+            "category": "Invasive / introduced", "category_color": "#b44949",
+            "status": "not_found", "observation_count": 0, "short_notes": "Invasive-watch shrub.",
+            "ecology": "Disturbed dry ground.", "native_status": "Introduced into India.",
+        },
+    ]
+    return {
+        "records": [], "groups": [], "total": 0, "species_count": 0,
+        "observation_count": 0, "is_demo_only": False, "categories": [],
+        "coverage": {"message": "2 observation locations recorded.", "coverage_percent": 0},
+        "progress": {"discovered_species": 0, "supported_species": 7, "category_progress": [], "milestones": []},
+        "aggregate": {},
+        "map": {"locations": locations, "total": 2, "has_locations": True,
+                "message": "Markers are observation coordinates; open directions uses an external map.",
+                "legend": legend, "region": "Vellore region, Tamil Nadu"},
+        "map_legend": legend,
+        "regional_catalog": {"region": "Vellore region, Tamil Nadu", "scope_note": "Curated regional starter checklist; not exhaustive."},
+        "regional_checklist": regional,
+    }
+
+
 def mode_status(
     mode: str,
     *,
@@ -170,7 +228,7 @@ def api_handler(
     elif path.endswith("/network/status"):
         route.fulfill(json=status["network"])
     elif path.endswith("/library/records"):
-        route.fulfill(json={"records": [], "total": 0, "is_demo_only": False})
+        route.fulfill(json=library_fixture())
     elif path.endswith("/mode/controller/crop"):
         route.fulfill(json={"ok": True, "detail": "UI fixture"})
     else:

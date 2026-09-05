@@ -1,3 +1,5 @@
+import { isDialogTarget, isEditableTarget } from "../../app/hotkeys.js";
+
 export function deriveScanPanelState(snapshot) {
   if (snapshot && snapshot.processing) return "processing";
   const result = snapshot && snapshot.classification ? snapshot.classification.result : null;
@@ -13,9 +15,12 @@ export function selectedFallbackIndex(snapshot) {
 }
 
 export function shouldManualCaptureFromKey(event, snapshot) {
-  const targetBlocked = event?.target?.matches?.(
+  const targetMatchesBlocked = event?.target?.matches?.(
     "input, textarea, select, button, [contenteditable=\"true\"]",
   );
+  const targetBlocked = targetMatchesBlocked
+    || isEditableTarget(event?.target)
+    || isDialogTarget(event?.target);
   return Boolean(
     event
     && event.code === "Space"

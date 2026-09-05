@@ -18,7 +18,13 @@ import { AskPage } from "../features/ask/AskPage.jsx";
 import { WeedsPage } from "../features/weeds/WeedsPage.jsx";
 import { MODES } from "../features/mode/modeState.js";
 import { PairingPage, PairedConsole, UnpairedConsole } from "../features/mode/ModeScreens.jsx";
-import { isShortcutBlocked, shortcutAction } from "./hotkeys.js";
+import {
+  CONTROL_SHORTCUTS,
+  findShortcutTarget,
+  isShortcutBlocked,
+  SHORTCUT_HELP,
+  shortcutAction,
+} from "./hotkeys.js";
 
 export function App() {
   const [screen, setScreen] = useState("home");
@@ -189,20 +195,36 @@ export function App() {
         || (modeStatus?.mode === MODES.NETWORKED_PAIRED && operator);
       if (modeConsoleVisible) return;
 
-      if (event.key === "?") {
-        event.preventDefault();
-        setShowDiagnostics(false);
-        setShowShortcuts((value) => !value);
-        return;
-      }
       if (event.key.toLowerCase() === "n" && operator && !compact) {
         event.preventDefault();
         void handleToggle();
         return;
       }
 
+      // Contextual buttons opt into keyboard activation with data-hotkey.
+      // Resolve them from the live document so a scan key cannot trigger a
+      // control from a different screen. Disabled controls are ignored by
+      // findShortcutTarget and the browser remains free to handle the event.
+      const control = findShortcutTarget(event);
+      if (control) {
+        // Space on a focused button already has native click semantics. Let
+        // that click happen instead of dispatching a second one here.
+        const targetTag = String(event.target?.tagName || "").toUpperCase();
+        if (!(event.code === "Space" && targetTag === "BUTTON")) {
+          event.preventDefault();
+          control.click?.();
+        }
+        return;
+      }
+
       const action = shortcutAction(event.key);
       if (!action) return;
+      if (action === "help") {
+        event.preventDefault();
+        setShowDiagnostics(false);
+        setShowShortcuts((value) => !value);
+        return;
+      }
       if (action === "weeds" && !capabilities?.weeds?.available) {
         event.preventDefault();
         notify("Weed Detection is unavailable until its detector is ready.", "error");
@@ -277,11 +299,11 @@ function AppShell({
       <header className="masthead">
         <div className="masthead-side">
           {screen !== "home" ? (
-            <button type="button" className="btn quiet" onClick={() => setScreen("home")} aria-keyshortcuts="H">Home <kbd>H</kbd></button>
+            <button type="button" className="btn quiet" onClick={() => setScreen("home")} aria-keyshortcuts="H">Home <kbd aria-hidden="true">H</kbd></button>
           ) : (
             <>
               <span className="masthead-status">{transportLabel(capabilities, modeStatus)}</span>
-              {!compact && <button type="button" className="btn quiet mode-button" onClick={onToggleMode} aria-keyshortcuts="N">Mode <kbd>N</kbd></button>}
+              {!compact && <button type="button" className="btn quiet mode-button" onClick={onToggleMode} aria-keyshortcuts="N">Mode <kbd aria-hidden="true">N</kbd></button>}
             </>
           )}
         </div>
@@ -298,15 +320,18 @@ function AppShell({
             aria-label={`Ask Botanika (${summary.knowledge ? "available" : "unavailable"})`}
           >
             <AskIcon />
-            Ask
+            Ask <kbd aria-hidden="true">A</kbd>
           </button>
           <button
             type="button"
             className="btn icon-target quiet"
             aria-label="Capability diagnostics"
             onClick={() => setShowDiagnostics((value) => !value)}
+            data-hotkey={CONTROL_SHORTCUTS.diagnostics}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.diagnostics}
           >
             <span className={`status-dot ${summary.ok ? "" : "degraded"}`} aria-hidden="true" />
+            <kbd aria-hidden="true">D</kbd>
           </button>
         </div>
       </header>
@@ -378,13 +403,12 @@ function KeyboardHelp({ onClose }) {
         <button type="button" className="btn quiet icon-target" onClick={onClose} aria-label="Close keyboard shortcuts">×</button>
       </div>
       <dl className="shortcuts-list">
-        <div><kbd>1</kbd><dt>Scan for Plants</dt></div>
-        <div><kbd>2</kbd><dt>Open Library</dt></div>
-        <div><kbd>3</kbd><dt>Weed Detection</dt></div>
-        <div><kbd>A</kbd><dt>Ask Botanika</dt></div>
-        <div><kbd>H</kbd><dt>Go Home</dt></div>
-        <div><kbd>Esc</kbd><dt>Home / close panel</dt></div>
-        <div><kbd>?</kbd><dt>Show these shortcuts</dt></div>
+        {SHORTCUT_HELP.map(({ key, label, scope }) => (
+          <div key={`${key}-${label}`}>
+            <kbd>{key}</kbd>
+            <dt>{label}{scope ? ` · ${scope}` : ""}</dt>
+          </div>
+        ))}
       </dl>
       <p>Shortcuts pause while you type or work in a dialog.</p>
     </section>

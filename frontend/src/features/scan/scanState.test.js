@@ -71,4 +71,9 @@ test("Space requests a manual tree frame only during idle live scanning", () => 
     shouldManualCaptureFromKey({ ...event, target: { matches: () => true } }, null),
     false,
   );
+  const dialog = { tagName: "DIALOG", parentElement: null };
+  assert.equal(
+    shouldManualCaptureFromKey({ ...event, target: { tagName: "div", parentElement: dialog } }, null),
+    false,
+  );
 });

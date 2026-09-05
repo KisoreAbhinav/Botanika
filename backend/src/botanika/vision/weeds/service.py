@@ -307,6 +307,17 @@ class WeedService:
             "crop_context": self.manifest.crop_context,
             "position_message": position_message,
             "position_available": normalized_position is not None,
+            "position": (
+                {
+                    "latitude": normalized_position["latitude"],
+                    "longitude": normalized_position["longitude"],
+                    "accuracy_m": normalized_position["accuracy_m"],
+                    "source": normalized_position["source"],
+                    "timestamp": normalized_position["timestamp"],
+                }
+                if normalized_position is not None and detections
+                else None
+            ),
             "run_id": run.run_id if run is not None else None,
             "image_persisted": False,
             "image_width": int(image.shape[1]),

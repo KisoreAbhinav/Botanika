@@ -2,6 +2,7 @@
 // backend letterboxed preview rectangle using the published transform.
 
 import { useEffect, useRef } from "react";
+import { overlayAriaLabel, recognitionOverlayLabels } from "./scanOverlayState.js";
 
 const OCHRE = "#8a692e";
 const GREEN = "#486b51";
@@ -24,7 +25,7 @@ export function ScanOverlay({ snapshot, onBoxTap }) {
       width={500}
       height={330}
       onClick={(event) => handleTap(event, snapshot, onBoxTap)}
-      aria-label="Detection overlay. Tap a box to select it."
+      aria-label={overlayAriaLabel(snapshot)}
       role="img"
     />
   );
@@ -38,9 +39,10 @@ function drawScene(context, canvas, snapshot) {
 
   const classification = snapshot.classification;
   const result = classification ? classification.result : null;
-  const accepted = result && result.status === "accepted";
+  const accepted = Boolean(result && result.status === "accepted");
+  const detections = Array.isArray(snapshot.detections) ? snapshot.detections : [];
 
-  snapshot.detections.forEach((detection, index) => {
+  detections.forEach((detection, index) => {
     const selected = index === snapshot.selected_index;
     const [x1, y1, x2, y2] = toPreviewBox(detection.box, frame);
     const width = x2 - x1;
@@ -51,13 +53,15 @@ function drawScene(context, canvas, snapshot) {
     context.strokeStyle = selected ? GREEN : OCHRE;
     context.strokeRect(x1, y1, width, height);
 
-    // Live detector label above the box; species name replaces it once an
-    // accepted result exists, with calibrated confidence below the box.
+    // Live detector label above the box; the accepted backend result replaces
+    // it with the requested AR-style Name/Confidence labels on the selected
+    // box. Before acceptance, the detector box stays visible and trackable.
     let label = null;
     let subLabel = null;
-    if (selected && accepted) {
-      label = result.common_name;
-      subLabel = `confidence ${Math.round(result.confidence * 100)}%${result.is_stub ? " · DEMO DATA" : ""}`;
+    const recognizedLabels = selected && accepted ? recognitionOverlayLabels(result) : null;
+    if (recognizedLabels) {
+      label = recognizedLabels.top;
+      subLabel = recognizedLabels.bottom;
     } else if (selected && result && result.status === "uncertain") {
       label = "Not confident";
     } else {
@@ -67,11 +71,13 @@ function drawScene(context, canvas, snapshot) {
     context.font = "800 12px Inter, ui-sans-serif, system-ui, sans-serif";
     context.textBaseline = "bottom";
     if (label) {
-      drawLabel(context, label, x1, y1 - 4, selected ? GREEN : OCHRE);
+      // Keep the top and bottom labels on the actual preview even when a box
+      // touches an image edge. This matters on the fixed 500×330 kiosk frame.
+      drawLabel(context, label, x1, Math.max(16, y1 - 4), selected ? GREEN : OCHRE);
     }
     if (subLabel) {
       context.textBaseline = "top";
-      drawLabel(context, subLabel, x1, y2 + 4, GREEN);
+      drawLabel(context, subLabel, x1, Math.min(canvas.height - 16, y2 + 4), GREEN);
     }
   });
 }
@@ -79,11 +85,14 @@ function drawScene(context, canvas, snapshot) {
 function drawLabel(context, text, x, y, color) {
   const metrics = context.measureText(text);
   const padding = 3;
+  const boxWidth = metrics.width + padding * 2;
+  const boxX = Math.max(0, Math.min(x - padding, context.canvas.width - boxWidth));
+  const textX = boxX + padding;
   const boxY = context.textBaseline === "top" ? y : y - 14;
   context.fillStyle = "rgba(39, 39, 36, 0.82)";
-  context.fillRect(x - padding, boxY, metrics.width + padding * 2, 16);
+  context.fillRect(boxX, boxY, boxWidth, 16);
   context.fillStyle = SURFACE;
-  context.fillText(text, x, context.textBaseline === "top" ? y + 1 : y);
+  context.fillText(text, textX, context.textBaseline === "top" ? y + 1 : y);
   context.strokeStyle = color;
   context.lineWidth = 1;
 }
@@ -98,7 +107,8 @@ function toPreviewBox(box, frame) {
 }
 
 function handleTap(event, snapshot, onBoxTap) {
-  if (!snapshot || !snapshot.frame || !onBoxTap || snapshot.detections.length === 0) return;
+  const detections = Array.isArray(snapshot?.detections) ? snapshot.detections : [];
+  if (!snapshot || !snapshot.frame || !onBoxTap || detections.length === 0) return;
   const canvas = event.currentTarget;
   const rect = canvas.getBoundingClientRect();
   // Canvas renders at natural 500x330; map CSS position back to canvas pixels
@@ -108,7 +118,7 @@ function handleTap(event, snapshot, onBoxTap) {
 
   let bestIndex = null;
   let bestDistance = Infinity;
-  snapshot.detections.forEach((detection, index) => {
+  detections.forEach((detection, index) => {
     const [x1, y1, x2, y2] = toPreviewBox(detection.box, snapshot.frame);
     if (x >= x1 && x <= x2 && y >= y1 && y <= y2) {
       const distance =

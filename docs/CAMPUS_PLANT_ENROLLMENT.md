@@ -139,7 +139,7 @@ records latency/RSS/temperature where the Pi exposes those values.  Weed
 field testing is intentionally left to the final operator checkpoint.
 
 No GPIO pins or LEDs are required.  The supported operator controls remain
-the screen and keyboard hotkeys (`1`, `2`, `3`, `A`, `H`/`Esc`, `N`, `?`).
+the screen and keyboard hotkeys (`1`, `2`, `3`, `A`, `H`/`Esc`, `N`, `F1`).
 On the Scan screen, `Space` performs a deliberate manual capture.  When the
 generic detector has no eligible `potted plant` box (as is common for outdoor
 trees), that manual action captures the full visible frame for classification;

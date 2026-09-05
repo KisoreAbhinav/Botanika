@@ -12,6 +12,7 @@ from .catalog import (
     normalize_name,
 )
 from .store import ABSTENTION, GroundedAnswer, KnowledgeHit, KnowledgeStore, SpeciesCatalog
+from .regional import REGIONAL_CATEGORIES, RegionalCatalogError, load_regional_catalog
 
 __all__ = [
     "ABSTENTION",
@@ -28,4 +29,7 @@ __all__ = [
     "SpeciesRecord",
     "load_catalog",
     "normalize_name",
+    "REGIONAL_CATEGORIES",
+    "RegionalCatalogError",
+    "load_regional_catalog",
 ]

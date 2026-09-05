@@ -7,6 +7,7 @@ import {
   saveToLibrary,
 } from "../../platform/api.js";
 import { selectedFallbackIndex } from "./scanState.js";
+import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
 // Bottom action bar: manual capture during live detection, save/retake/another
 // angle once a result exists, cancel while processing, and local-image
@@ -88,22 +89,49 @@ export function ScanActions({
   return (
     <div className="scan-actions">
       {!hasResult && cameraAvailable && (
-        <button type="button" className="btn primary" onClick={onManualCapture} disabled={processing}>
-          Manual capture · Space
+        <button
+          type="button"
+          className="btn primary"
+          onClick={onManualCapture}
+          disabled={processing}
+          data-hotkey={CONTROL_SHORTCUTS.manualCapture}
+          aria-keyshortcuts={CONTROL_SHORTCUTS.manualCapture}
+        >
+          Manual capture <kbd aria-hidden="true">Space</kbd>
         </button>
       )}
       {!hasResult && (
-        <button type="button" className="btn" onClick={openFilePicker} disabled={processing}>
-          Local image
+        <button
+          type="button"
+          className="btn"
+          onClick={openFilePicker}
+          disabled={processing}
+          data-hotkey={CONTROL_SHORTCUTS.localImage}
+          aria-keyshortcuts={CONTROL_SHORTCUTS.localImage}
+        >
+          Local image <kbd aria-hidden="true">L</kbd>
         </button>
       )}
       {mode === "fallback" && !hasResult && (
         <>
-          <button type="button" className="btn green" onClick={onFallbackCapture} disabled={processing}>
-            Capture from image
+          <button
+            type="button"
+            className="btn green"
+            onClick={onFallbackCapture}
+            disabled={processing}
+            data-hotkey={CONTROL_SHORTCUTS.captureFromImage}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.captureFromImage}
+          >
+            Capture from image <kbd aria-hidden="true">C</kbd>
           </button>
-          <button type="button" className="btn quiet" onClick={onClearFallback}>
-            Clear image
+          <button
+            type="button"
+            className="btn quiet"
+            onClick={onClearFallback}
+            data-hotkey={CONTROL_SHORTCUTS.clearImage}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.clearImage}
+          >
+            Clear image <kbd aria-hidden="true">X</kbd>
           </button>
         </>
       )}
@@ -115,6 +143,8 @@ export function ScanActions({
             className="btn green"
             onClick={onSave}
             disabled={!accepted || saveState === "saving" || !storageAvailable}
+            data-hotkey={CONTROL_SHORTCUTS.saveToLibrary}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.saveToLibrary}
             title={
               !accepted
                 ? "A guessed result cannot be saved as a confirmed species"
@@ -123,22 +153,40 @@ export function ScanActions({
                 : "Save this crop to the local discovery library"
             }
           >
-            {saveState === "saving" ? "Saving…" : "Save to Library"}
+            {saveState === "saving" ? "Saving…" : <>Save to Library <kbd aria-hidden="true">S</kbd></>}
           </button>
-          <button type="button" className="btn" onClick={onRetake}>
-            Retake
+          <button
+            type="button"
+            className="btn"
+            onClick={onRetake}
+            data-hotkey={CONTROL_SHORTCUTS.retake}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.retake}
+          >
+            Retake <kbd aria-hidden="true">R</kbd>
           </button>
           {/* Another angle resets the lock so the operator can reframe. */}
-          <button type="button" className="btn" onClick={onRetake}>
-            Another angle
+          <button
+            type="button"
+            className="btn"
+            onClick={onRetake}
+            data-hotkey={CONTROL_SHORTCUTS.anotherAngle}
+            aria-keyshortcuts={CONTROL_SHORTCUTS.anotherAngle}
+          >
+            Another angle <kbd aria-hidden="true">G</kbd>
           </button>
         </>
       )}
 
       <span className="spacer" />
       {processing && (
-        <button type="button" className="btn danger" onClick={onCancel}>
-          Cancel
+        <button
+          type="button"
+          className="btn danger"
+          onClick={onCancel}
+          data-hotkey={CONTROL_SHORTCUTS.cancelScan}
+          aria-keyshortcuts={CONTROL_SHORTCUTS.cancelScan}
+        >
+          Cancel <kbd aria-hidden="true">Esc</kbd>
         </button>
       )}
       {result && result.is_stub && <span className="demo-tag">Demo data</span>}

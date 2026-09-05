@@ -16,7 +16,7 @@ import threading
 from typing import Iterator
 
 
-DATABASE_SCHEMA_VERSION = 4
+DATABASE_SCHEMA_VERSION = 5
 
 
 def utc_now() -> str:
@@ -383,6 +383,35 @@ class SQLiteDatabase:
                 connection.execute(
                     "INSERT INTO botanika_migrations(version, applied_at) VALUES (?, ?)",
                     (4, utc_now()),
+                )
+            if 5 not in applied:
+                # Observation locations were already introduced with the
+                # Phase 6 positioning table.  This additive migration makes
+                # map/list queries predictable on upgraded databases without
+                # rewriting any user discoveries.
+                connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS positioning_samples (
+                        sample_id TEXT PRIMARY KEY,
+                        observation_id TEXT REFERENCES discoveries(observation_id) ON DELETE CASCADE,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        accuracy_m REAL NOT NULL,
+                        source TEXT NOT NULL,
+                        captured_at REAL NOT NULL,
+                        CHECK(latitude >= -90 AND latitude <= 90),
+                        CHECK(longitude >= -180 AND longitude <= 180),
+                        CHECK(accuracy_m >= 0)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_positioning_observation_time
+                        ON positioning_samples(observation_id, captured_at);
+                    CREATE INDEX IF NOT EXISTS idx_positioning_coordinates
+                        ON positioning_samples(latitude, longitude);
+                    """
+                )
+                connection.execute(
+                    "INSERT INTO botanika_migrations(version, applied_at) VALUES (?, ?)",
+                    (5, utc_now()),
                 )
             connection.commit()
 
