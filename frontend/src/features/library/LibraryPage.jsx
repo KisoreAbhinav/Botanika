@@ -341,7 +341,7 @@ function ObservationMap({ mapData }) {
         {(mapData?.legend || []).map((item) => <span key={item.category}><i style={{ backgroundColor: item.color }} aria-hidden="true" />{item.label}</span>)}
       </div>
       {locations.length > 0 && <div className="map-location-list">
-        {locations.map((location, index) => <a href={location.directions_url} target="_blank" rel="noreferrer" key={`${location.observation_id || "loc"}-link-${index}`}><span style={{ color: location.category_color }}>●</span> {location.common_name} · Open directions</a>)}
+        {locations.map((location, index) => <a href={location.directions_url} target="_blank" rel="noreferrer" key={`${location.observation_id || "loc"}-link-${index}`}><span style={{ color: location.category_color }}>●</span> {location.common_name} · {Number(location.latitude).toFixed(5)}, {Number(location.longitude).toFixed(5)} · Open directions</a>)}
       </div>}
     </section>
   );

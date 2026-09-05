@@ -62,3 +62,6 @@ data/vectors/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Private planning material is kept locally but is not part of the public repo.
+/.local/project-notes/

@@ -1,0 +1,32 @@
+{
+  "input": "data/demo/weed-in-maize-field.jpg",
+  "model": "broadleaf-yolo11n-640 (llama-farm 33475e9; SHA locked)",
+  "confidence_threshold": 0.35,
+  "image_width": 800,
+  "image_height": 600,
+  "result": {
+    "status": "ready",
+    "detail": "Weed beta frame analyzed; temporary image was discarded.",
+    "detections": [
+      {
+        "weed_class": "weed",
+        "confidence": 0.6648586988449097,
+        "box": {
+          "x1": 4.3642425537109375,
+          "y1": 85.11497497558594,
+          "x2": 800.0,
+          "y2": 597.7240753173828
+        }
+      }
+    ],
+    "detector_version": "broadleaf-yolo11n-640 (llama-farm 33475e9; SHA locked)",
+    "crop_context": "Grass turf/lawn with ground-level top-down UGV imagery; not validated for Indian crops",
+    "position_message": "Exact location could not be found. Coordinate collection was skipped.",
+    "position_available": false,
+    "position": null,
+    "run_id": null,
+    "image_persisted": false,
+    "image_width": 800,
+    "image_height": 600
+  }
+}

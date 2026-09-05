@@ -20,9 +20,6 @@ satisfy the deployment gate.
 
 ## Start here
 
-- [Complete phase-by-phase implementation prompt](BOTANIKA_PI_APP_IMPLEMENTATION_PROMPT.md)
-- [Build prompt entry point](prompt.md)
-- [Pi architecture and implementation roadmap](docs/PI_ARCHITECTURE_AND_ROADMAP.md)
 - [Stage 0 hardware-readiness runbook](docs/STAGE0_TEST_RUNBOOK.md)
 - [Stage 0 readiness report](docs/STAGE0_READINESS_REPORT_2026-09-01.md)
 - [Phase 1 raw-feed report](docs/PHASE1_RAW_FEED_REPORT_2026-09-01.md)

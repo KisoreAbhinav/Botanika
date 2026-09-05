@@ -5,6 +5,18 @@ export function cameraAccessMode(scope = globalThis) {
   return "capture-input";
 }
 
+/**
+ * Attach a browser-owned stream after its video element has mounted. Mobile
+ * browsers may resolve getUserMedia before a conditional video element exists.
+ */
+export function attachCameraStream(video, stream) {
+  if (!video || !stream) return false;
+  video.srcObject = stream;
+  const playback = video.play?.();
+  if (playback && typeof playback.catch === "function") playback.catch(() => {});
+  return true;
+}
+
 export function canRequestPosition(scope = globalThis) {
   return Boolean(scope.isSecureContext && scope.navigator?.geolocation);
 }

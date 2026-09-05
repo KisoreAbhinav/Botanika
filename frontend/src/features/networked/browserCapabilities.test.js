@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { cameraAccessMode, canRequestPosition, positionPayload } from "./browserCapabilities.js";
+import {
+  attachCameraStream,
+  cameraAccessMode,
+  canRequestPosition,
+  positionPayload,
+} from "./browserCapabilities.js";
 
 test("secure browsers use local getUserMedia and geolocation", () => {
   const scope = {
@@ -25,6 +30,21 @@ test("private HTTP uses the native still-capture input and skips location", () =
   };
   assert.equal(cameraAccessMode(scope), "capture-input");
   assert.equal(canRequestPosition(scope), false);
+});
+
+test("camera streams can attach after a conditional video element mounts", () => {
+  let played = false;
+  const stream = { id: "phone-stream" };
+  const video = {
+    play() {
+      played = true;
+      return Promise.resolve();
+    },
+  };
+  assert.equal(attachCameraStream(video, stream), true);
+  assert.equal(video.srcObject, stream);
+  assert.equal(played, true);
+  assert.equal(attachCameraStream(null, stream), false);
 });
 
 test("save-time position accepts accurate fixes and rejects inaccurate data", () => {

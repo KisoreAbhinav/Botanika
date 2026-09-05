@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { classifyControllerCrop, saveToLibrary } from "../../platform/api.js";
-import { cameraAccessMode, canRequestPosition, positionPayload } from "./browserCapabilities.js";
+import {
+  attachCameraStream,
+  cameraAccessMode,
+  canRequestPosition,
+  positionPayload,
+} from "./browserCapabilities.js";
 import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
 /**
@@ -11,6 +16,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
+  const streamRef = useRef(null);
   const [cameraState, setCameraState] = useState("starting");
   const [pending, setPending] = useState(null);
   const [quality, setQuality] = useState(null);
@@ -37,7 +43,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
         value.getTracks().forEach((track) => track.stop());
         return;
       }
-      if (videoRef.current) videoRef.current.srcObject = value;
+      streamRef.current = value;
       setCameraState("ready");
     }).catch(() => {
       if (!cancelled) setCameraState("denied");
@@ -45,9 +51,16 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     return () => {
       cancelled = true;
       stream?.getTracks?.().forEach((track) => track.stop());
+      streamRef.current = null;
       if (videoRef.current) videoRef.current.srcObject = null;
     };
   }, []);
+
+  // The video is conditional on camera state, so it can mount after the
+  // getUserMedia promise resolves. Reattach whenever that element appears.
+  useEffect(() => {
+    if (cameraState === "ready") attachCameraStream(videoRef.current, streamRef.current);
+  }, [cameraState]);
 
   useEffect(() => {
     return () => {
@@ -57,7 +70,13 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
 
   const captureVideo = async () => {
     const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
+    if (!video) {
+      setError("The phone camera is still starting. Try again in a moment.");
+      return;
+    }
+    try {
+      await waitForVideoFrame(video, streamRef.current);
+    } catch {
       setError("The phone camera has not produced a frame yet.");
       return;
     }
@@ -199,7 +218,14 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
         {!pending ? (
           <div className="phone-camera-view">
             {cameraState === "ready" ? (
-              <video ref={videoRef} autoPlay playsInline muted aria-label="Live phone camera" />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                aria-label="Live phone camera"
+                onLoadedMetadata={(event) => attachCameraStream(event.currentTarget, streamRef.current)}
+              />
             ) : (
               <div className="camera-fallback-message">
                 <strong>{cameraState === "starting" ? "Starting phone camera…" : "Use the phone camera"}</strong>
@@ -352,6 +378,28 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
       </section>
     </div>
   );
+}
+
+function waitForVideoFrame(video, stream, timeoutMs = 2000) {
+  if (video.videoWidth > 0 && video.videoHeight > 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      video.removeEventListener("loadedmetadata", onReady);
+      video.removeEventListener("canplay", onReady);
+      callback();
+    };
+    const onReady = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) finish(resolve);
+    };
+    const timeoutId = window.setTimeout(() => finish(reject), timeoutMs);
+    video.addEventListener("loadedmetadata", onReady);
+    video.addEventListener("canplay", onReady);
+    attachCameraStream(video, stream || video.srcObject);
+  });
 }
 
 function measureQuality(imageData) {

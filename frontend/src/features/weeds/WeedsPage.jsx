@@ -16,6 +16,7 @@ import { createLocationSampler } from "./weedLocation.js";
 import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
 const EXACT_POSITION_MESSAGE = "Exact location could not be found. Coordinate collection was skipped.";
+const INDIA_WEED_CONTEXT = "India field context · broadleaf weed cue · confirm on site before acting.";
 // Weed frames are samples, not a video upload. Keep the request rate bounded
 // and let a slow Pi finish before another sample is sent.
 const LIVE_SAMPLE_INTERVAL_MS = 1200;
@@ -255,7 +256,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
           <span className={`status-pill ${available ? "ready" : "degraded"}`}>{available ? "Ready" : "Unavailable"}</span>
         </div>
         <p className="weed-context">
-          {manifest ? `${manifest.crop_context || "Supported crop context"} · ${manifest.region || "Region not specified"}` : "Supported crop context and region are unavailable until the beta model is installed."}
+          {INDIA_WEED_CONTEXT}
         </p>
         {manifest?.labels?.length ? <div className="weed-labels">Supported classes: {manifest.labels.join(" · ")}</div> : null}
 
