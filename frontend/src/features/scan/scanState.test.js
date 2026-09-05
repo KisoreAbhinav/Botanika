@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   deriveScanPanelState,
+  isValidationPendingResult,
   selectedFallbackIndex,
   shouldManualCaptureFromKey,
 } from "./scanState.js";
@@ -25,11 +26,21 @@ test("scan panel covers detection, lock, and processing states", () => {
 test("scan panel exposes accepted, uncertain, error, and cancelled outcomes safely", () => {
   assert.equal(deriveScanPanelState(snapshot({ status: "accepted" })), "result");
   assert.equal(deriveScanPanelState(snapshot({ status: "uncertain" })), "uncertain");
+  assert.equal(
+    deriveScanPanelState(snapshot({ status: "uncertain", validation_pending: true })),
+    "validation-pending",
+  );
   assert.equal(deriveScanPanelState(snapshot({ status: "error", error: "failed" })), "error");
   assert.equal(
     deriveScanPanelState({ ...snapshot(), hint: "Scan cancelled", processing: false }),
     "guidance",
   );
+});
+
+test("validation-pending is distinct from an uncertain camera view", () => {
+  assert.equal(isValidationPendingResult({ status: "uncertain", validation_pending: true }), true);
+  assert.equal(isValidationPendingResult({ status: "uncertain", validation_pending: false }), false);
+  assert.equal(isValidationPendingResult({ status: "accepted", validation_pending: true }), false);
 });
 
 test("fallback capture follows the operator-selected box", () => {

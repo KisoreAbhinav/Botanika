@@ -7,7 +7,12 @@ import unittest
 import numpy as np
 
 from botanika.core.settings import DEFAULT_REGIONAL_CATALOG, DEFAULT_SPECIES_CATALOG
-from botanika.knowledge import load_regional_catalog, KnowledgeStore
+from botanika.knowledge import (
+    CatalogIntegrityError,
+    KnowledgeStore,
+    load_reference_catalog,
+    load_regional_catalog,
+)
 from botanika.storage import DiscoveryLibrary
 from botanika.vision.classification import (
     ClassificationPipeline,
@@ -21,13 +26,90 @@ from botanika.vision.quality import CropStore
 class RegionalLibraryTests(unittest.TestCase):
     def test_regional_catalog_is_broader_than_classifier_and_sourced(self):
         catalog = load_regional_catalog(DEFAULT_REGIONAL_CATALOG)
-        self.assertGreaterEqual(len(catalog["species"]), 20)
+        self.assertGreaterEqual(len(catalog["species"]), 48)
         self.assertIn("occurrence_basis", catalog)
         self.assertIn("gbif-vellore-plantae-search", {
             source["source_id"] for source in catalog["sources"]
         })
         self.assertTrue(all(item["source_ids"] for item in catalog["species"]))
         self.assertTrue(all(item["knowledge"] for item in catalog["species"]))
+
+    def test_reference_catalog_joins_reviewed_campus_labels_without_merging_model_catalog(self):
+        reference = load_reference_catalog(DEFAULT_REGIONAL_CATALOG)
+        self.assertEqual(reference.version, "2026.09.05.1")
+        self.assertEqual(reference.species_by_id()["in:sanchezia-oblonga"].scientific_name, "Sanchezia oblonga")
+        self.assertNotEqual(
+            reference.species_by_id()["in:sanchezia-oblonga"].species_id,
+            "in:pseuderanthemum-maculatum",
+        )
+        self.assertEqual(
+            reference.species_by_id()["in:cordia-sebestena"].scientific_name,
+            "Cordia sebestena",
+        )
+        self.assertIn("Mimusops elengi", reference.species_by_id()["in:mimusops-elengi"].scientific_name)
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = KnowledgeStore(
+                Path(directory) / "botanika.sqlite",
+                DEFAULT_SPECIES_CATALOG,
+                reference_catalog_path=DEFAULT_REGIONAL_CATALOG,
+            )
+            self.addCleanup(store.close)
+            # The seven-class production catalog remains unchanged while the
+            # reference species are available to library/knowledge callers.
+            self.assertEqual(len(store.catalog.species), 7)
+            self.assertEqual(len(store.list_species()), 48)
+            self.assertEqual(store.get_species("in:serissa-japonica").common_name, "Snowrose")
+            answer = store.answer("What is Sanchezia oblonga?")
+            self.assertFalse(answer.abstained)
+            self.assertTrue(all(hit.species_id == "in:sanchezia-oblonga" for hit in answer.citations))
+            self.assertTrue(all(hit.source_url.startswith("https://") for hit in answer.citations))
+            manifest = store.knowledge_manifest()
+            self.assertEqual(
+                manifest["reference_catalog"]["digest"],
+                reference.digest,
+            )
+            self.assertEqual(manifest["reference_catalog"]["version"], reference.version)
+
+    def test_reference_digest_requires_version_bump_and_allows_versioned_metadata_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog_path = root / "regional.json"
+            catalog_path.write_text(DEFAULT_REGIONAL_CATALOG.read_text(encoding="utf-8"), encoding="utf-8")
+            database = root / "botanika.sqlite"
+            first = KnowledgeStore(database, DEFAULT_SPECIES_CATALOG, reference_catalog_path=catalog_path)
+            first.close()
+
+            import json
+
+            raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+            target = next(item for item in raw["species"] if item["species_id"] == "in:serissa-japonica")
+            target["short_notes"] += " Revised."
+            old_fact = target["knowledge"][0]["text"]
+            target["knowledge"][0]["text"] = "This is the replacement versioned fact for Snowrose."
+            catalog_path.write_text(json.dumps(raw), encoding="utf-8")
+            with self.assertRaisesRegex(CatalogIntegrityError, "without a catalog version bump"):
+                KnowledgeStore(database, DEFAULT_SPECIES_CATALOG, reference_catalog_path=catalog_path)
+
+            raw["version"] = "2026.09.05.2"
+            catalog_path.write_text(json.dumps(raw), encoding="utf-8")
+            revised = KnowledgeStore(database, DEFAULT_SPECIES_CATALOG, reference_catalog_path=catalog_path)
+            self.addCleanup(revised.close)
+            self.assertTrue(revised.get_species("in:serissa-japonica").short_notes.endswith("Revised."))
+            self.assertTrue(
+                revised.search(
+                    "replacement versioned fact",
+                    species_id="in:serissa-japonica",
+                    use_embedding=False,
+                )
+            )
+            self.assertFalse(
+                revised.search(
+                    old_fact,
+                    species_id="in:serissa-japonica",
+                    use_embedding=False,
+                )
+            )
 
     def test_same_species_groups_photos_and_locations_with_safe_map_links(self):
         with tempfile.TemporaryDirectory() as directory:

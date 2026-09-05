@@ -12,7 +12,15 @@ from .catalog import (
     normalize_name,
 )
 from .store import ABSTENTION, GroundedAnswer, KnowledgeHit, KnowledgeStore, SpeciesCatalog
-from .regional import REGIONAL_CATEGORIES, RegionalCatalogError, load_regional_catalog
+from .regional import (
+    REGIONAL_CATEGORIES,
+    CampusCatalogView,
+    ReferenceCatalog,
+    RegionalCatalogError,
+    load_reference_catalog,
+    load_regional_catalog,
+    merge_catalog_views,
+)
 
 __all__ = [
     "ABSTENTION",
@@ -30,6 +38,10 @@ __all__ = [
     "load_catalog",
     "normalize_name",
     "REGIONAL_CATEGORIES",
+    "CampusCatalogView",
+    "ReferenceCatalog",
     "RegionalCatalogError",
+    "load_reference_catalog",
     "load_regional_catalog",
+    "merge_catalog_views",
 ]

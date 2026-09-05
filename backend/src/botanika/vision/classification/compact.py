@@ -216,6 +216,7 @@ class CompactSpeciesClassifier(SpeciesClassifier):
                 sources=("botanika:unvalidated-classifier-baseline",),
                 classifier_version=self.classifier_version,
                 suggestions=suggestions,
+                validation_pending=True,
             )
 
         species_id = self.label_map[best_index]

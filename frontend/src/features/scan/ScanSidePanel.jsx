@@ -85,6 +85,30 @@ export function ScanSidePanel({ snapshot, saveState }) {
     );
   }
 
+  if (panelState === "validation-pending") {
+    return (
+      <aside className="scan-side">
+        <div className="side-header">Validation pending</div>
+        <div className="side-body">
+          <p>
+            The classifier has a provisional match ({pct(result.confidence)}), but independent
+            field validation is incomplete. This suggestion cannot be saved yet.
+          </p>
+          {(result.suggestions || []).map((suggestion) => (
+            <div className="suggestion-row" key={suggestion.scientific_name}>
+              <span>
+                {suggestion.common_name}
+                <div className="sci">{suggestion.scientific_name}</div>
+              </span>
+              <span className="mono">{pct(suggestion.confidence)}</span>
+            </div>
+          ))}
+          {result.short_notes && <p className="side-copy">{result.short_notes}</p>}
+        </div>
+      </aside>
+    );
+  }
+
   if (panelState === "error") {
     return (
       <aside className="scan-side">

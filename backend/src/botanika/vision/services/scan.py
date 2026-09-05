@@ -138,6 +138,7 @@ class ScanService:
                         campus_path,
                         settings.embedding_model_path,
                         settings.species_catalog_path,
+                        regional_catalog_path=settings.regional_catalog_path,
                         acceptance_threshold=settings.acceptance_threshold,
                     )
                     LOGGER.info("Loaded campus few-shot classifier artifact %s", campus_path)

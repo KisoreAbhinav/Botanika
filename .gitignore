@@ -32,6 +32,10 @@ data/media/discoveries/*
 !data/media/discoveries/.gitkeep
 data/media/temp/*
 !data/media/temp/.gitkeep
+# Local campus-photo uploads and their raw extraction are operator data, not
+# source assets. Keep this exact root-level upload name out of Git.
+/Campus Flora.zip
+/Campus Flora/
 logs/
 runtime/
 
@@ -42,6 +46,12 @@ models/**/*.pt
 models/**/*.pth
 models/**/*.gguf
 models/**/*.bin
+# Operator-supplied campus photos and generated enrollment artifacts stay
+# local; only the privacy-safe review manifest is tracked.
+/data/campus/enrollment/
+/data/campus/.enrollment.staging-*
+/models/plant_classifier/campus-fewshot-v1.json
+/models/plant_classifier/campus-fewshot-v1.json.sha256
 data/knowledge/*.jsonl
 data/knowledge/*.parquet
 data/vectors/*

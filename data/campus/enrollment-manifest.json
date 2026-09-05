@@ -1,0 +1,667 @@
+{
+  "format": "botanika-campus-enrollment-manifest-1",
+  "manifest_version": "campus-flora-reviewed-2026-09-05",
+  "purpose": "Conservative, provisional campus few-shot enrollment selected after independent visual review and root high-resolution audit.",
+  "archive_filename": "Campus Flora.zip",
+  "archive_prefix": "Campus Flora/",
+  "archive_sha256": "ab00e86565691e98b0465ef644817910b392097dd48c86059c95226bd370a44b",
+  "archive_member_count": 101,
+  "archive_image_count": 100,
+  "accepted_image_count": 75,
+  "excluded_image_count": 25,
+  "privacy_note": "This manifest contains relative filenames, labels, review evidence, source URLs, and the archive checksum only. It intentionally contains no absolute paths, GPS coordinates, or EXIF metadata.",
+  "model_status": "provisional enrollment only; no production approval, deployment promotion, or safety-gate changes.",
+  "identification_method": "Visual review of all three-view runs, duplicate-aware grouping, authoritative taxonomy/trait cross-checks, and a root high-resolution audit. Exact cultivar resolution is not asserted where photographs do not support it.",
+  "hashing": {
+    "archive_sha256": "SHA-256 above identifies the operator-supplied archive.",
+    "image_sha256": "The per-file SHA-256 map below lets preparation verify every archive image before materializing the accepted subset; the generated artifact records the accepted hashes again for runtime provenance."
+  },
+  "file_sha256": {
+    "IMG_20260905_162948020.jpg": "9ea0253b5033a782ce69a703e6ea6648270643b70f9859dc55140a19f7d192da",
+    "IMG_20260905_162951865.jpg": "c1ee14d0c1091b98c58c4f824c6d4fe6f6a77078ac2d02b05d5c5dc10fa38f1e",
+    "IMG_20260905_162954516.jpg": "e3cdde73e2ba02d43d2d777a2e7124fafc1021e6491c1dc3960c7f0e516ba17f",
+    "IMG_20260905_163020515.jpg": "5c9a226c5d5b26452d5c9f0e1b87820b3f0228777a93280007806c8cce4dc983",
+    "IMG_20260905_163024390.jpg": "90d1f94fff17a4207cf5db8607529a1e502debe1c0656fbb7aa46a0357042f18",
+    "IMG_20260905_163028487.jpg": "7515f4d8a4bef864cf3ccb36b0342abb6992084e32c2ac356b230f7ce806718e",
+    "IMG_20260905_163042836.jpg": "daa9ca8dfcafc19f7e4578883c082b638f43bd907c7da183fdf1d7f485ba0fa2",
+    "IMG_20260905_163045550.jpg": "9500e44e8cf86f71d28b03a9d18abd2cb227b3001bee6e89f5d79efecff95686",
+    "IMG_20260905_163048223.jpg": "17d9871844109e2e0d91b787694fa209e35cc3cd1a9921689424bc06d8fbceba",
+    "IMG_20260905_163053355.jpg": "21712fab41504c9f408153cc5d74be009d9387dbc3f8f857d6d033e9d888e4ba",
+    "IMG_20260905_163057089.jpg": "a9bb4020e64abe22fba2c1c1584307b4910adcd513eb974418fdf66266526a47",
+    "IMG_20260905_163058863.jpg": "e1a29ff2fff3770f0d881f7a56dbb8ad01c86a60760a8eaffcaacacdfa2eb318",
+    "IMG_20260905_163105671.jpg": "6175389d4461f24fb268a6fb9175eea2be3d83e75b535a2901196c89bd5c947d",
+    "IMG_20260905_163110405.jpg": "1b6462e0d6833f964b8a3386d415290aa7c9f3d3fa41806b3cd5243bf8d41f3b",
+    "IMG_20260905_163116088.jpg": "9382b7f45a311ef9dd81dffb089ef72d389e87dc4f3476974815d3e6541dc51e",
+    "IMG_20260905_163237993.jpg": "7d198f2f73ec4a0a92ef6d82b404f7a5bfd0259008b11d06e956810aed0e6273",
+    "IMG_20260905_163240353_HDR.jpg": "ad65ded438b9cbe34746dc9ab9c5fc273e7acc7bcc12b803d30f4ccebe753588",
+    "IMG_20260905_163242975_HDR.jpg": "c25bf5784569d9d710bd7cdb7e7e36f859203d678133193f564677d865f1cce4",
+    "IMG_20260905_163405149_HDR.jpg": "c3138ef71c49c3cfde6ff2307eaada8a6133fa6f776869341c8b34323b185e8a",
+    "IMG_20260905_163408082.jpg": "551ef270ff4ca41ddc12cd2d184522150c73758b20852d9de1b9dd977a91f66e",
+    "IMG_20260905_163411767_HDR.jpg": "1bf2f81232fb1a6302698ef71589a372263f580b2d49abe82e687255c111f9fc",
+    "IMG_20260905_163509953.jpg": "a1ca2967bf4e3b181bdab4a48fb832ca733bea82e42c745d09de70d95c1d14b7",
+    "IMG_20260905_163512948.jpg": "eac0f5ffce4a741cee7ec0f36ce26e796f265d30e6fd5aa1be0a103b0b404b61",
+    "IMG_20260905_163517627.jpg": "218c6d53e7e1ab713609b989eb90da77d053d1bc3317cffe34a8b25fe2ef6544",
+    "IMG_20260905_163634864.jpg": "de92728860fb7fa9b97b7d233147aff6034baafcb36753e56c22c250c1654e33",
+    "IMG_20260905_163637683.jpg": "bf7796107b55b6284ec7934b4033e1198cb7fd947507b98ad891ed28ee2e06f3",
+    "IMG_20260905_163657810.jpg": "c8187f65133e0d2f0533e266f49542042ed78b39dcd38c284c1cbf47a123cef6",
+    "IMG_20260905_163748120.jpg": "e750936bdd843bc8240684161b348c565ba821c1c6b49105ede31eb0ca738e06",
+    "IMG_20260905_163750748.jpg": "cc9052aa4c437f82caaa260705e683e7d48e46acf3746c5c4f4b06d93d734165",
+    "IMG_20260905_163800232.jpg": "6518fbc9ceaf678e66b22af5c08633f48843b7a2d2c8d9762245d9ff0c19aed8",
+    "IMG_20260905_163832709_HDR.jpg": "bae54c2463dadfabbb53e9e263c8f2ceea80909f92e3b4cc7613e865751793b7",
+    "IMG_20260905_163835306.jpg": "04d4da0ff4e6814f3260e28a835a7da3c7aefe970cf06414aa07ff492727f799",
+    "IMG_20260905_163838941.jpg": "1d31b49c270f7a1fd4f4bf0102f9a8b73260a514498c156f277991a6995be232",
+    "IMG_20260905_163851183.jpg": "75508fd5e107bfb48881b181128fc23c2f9827f1396e481e44f5da8a0ee1e8c5",
+    "IMG_20260905_163854121.jpg": "c55d3f9e7282d499945a4137753871695ad0a2e3603784978f3542c937dde3a7",
+    "IMG_20260905_163856144.jpg": "132db8b8d67d9640050babf52068d44daceccb5bd79bf1ca12bd3b768e0227ff",
+    "IMG_20260905_164056731.jpg": "49ed0ba5b7ea6664798cfbe202c809ac6dc1454018f9afc64449cb565edd4eb7",
+    "IMG_20260905_164058938_HDR.jpg": "91aa4f032c6e4cc1039ae8c95b42a988e6ef30d431df6e6ac725d306cebadc5e",
+    "IMG_20260905_164101098_HDR.jpg": "a07ade9f308041c0be86e7db4b2ad19734906b5125c7bda25b16caf24064e79b",
+    "IMG_20260905_164128257.jpg": "70029a62ceb29b2fbcf2bf351b4e2dcbeca47fbdc7c7aa84d6003d07085a6a3a",
+    "IMG_20260905_164130699.jpg": "dc39cc26697ef0573f912b930938098c5592931226e7e3fbf63ecc3d867aaaaf",
+    "IMG_20260905_164140768.jpg": "54afcbf5adf3b83f77cd542b896e05601a4c70fbfcb8f938c6fbb0bd3d4d9995",
+    "IMG_20260905_164156517.jpg": "34206d57a88edf54a9ff36be930eeaeb8abc0f608e5c546d0f1d64c399c7a739",
+    "IMG_20260905_164159793.jpg": "3d1995d6f902de04aa5506c9a3367a20fa74554fd977f0590c5feba02e4f94f9",
+    "IMG_20260905_164205316.jpg": "20a71b79c4530141275917d42f2fe2686ded60d8f68dff700929091f004c894a",
+    "IMG_20260905_164304865_HDR.jpg": "2e872e0f0a122a6987c19d5e87f8f79c13fdcb4b2e602591663ee7c9c9172292",
+    "IMG_20260905_164307122_HDR.jpg": "c4930f3bd1646ef7d2d2b855ccd4adad066890e8b00491efea18edc715862823",
+    "IMG_20260905_164310448_HDR.jpg": "9da12fef626153f0a732b4a011cb0895723e90bee0c2569a968275b4bdc6e1c3",
+    "IMG_20260905_164322649_HDR.jpg": "3b9e088b068ebbe9c74bcad75efb20d37ba6b760547f698f74ab21201ee421e8",
+    "IMG_20260905_164325546_HDR.jpg": "aa4de36da818f9ed4c19fa313966a551d1d0eefaf7c99f72699fcdf7f1fd63db",
+    "IMG_20260905_164328572_HDR.jpg": "c7f1523e3a7502f5c1c2b4cf0b2ec5681bb1ebf0d25847a4de775845b45be876",
+    "IMG_20260905_164345534_HDR.jpg": "adb225cc3c944eabc2f5f910b131124fbb276c8f0eb05eea6540f99d70bae5f2",
+    "IMG_20260905_164348365_HDR.jpg": "a49abc86cca06727bb1663f16ec39b04237aa4b8c58122b2ec50c31dae610d5b",
+    "IMG_20260905_164355391_HDR.jpg": "0c7d4cc1e959e3c0ef1a75e6de348f47071d9ee41d10de55f6be366ef032f040",
+    "IMG_20260905_164419571_HDR.jpg": "6be4f6d8741d9586070b36517c8889ddf38253874899f814a84f850e58df99bf",
+    "IMG_20260905_164423671_HDR.jpg": "25544946c6217fca044968f9922adcb4ba457bc2154968e4ebbf170cf686a2db",
+    "IMG_20260905_164426915_HDR.jpg": "1e4873b67c75325b092bad90934f4ddb90dc2484f1ddd2d1296c845e7b23561e",
+    "IMG_20260905_164553688_HDR.jpg": "c8af54a5e4fcf36c087e692abfee60febd60dfefa23a65e727a6c215e52e955c",
+    "IMG_20260905_164556069_HDR.jpg": "a28874069a16d00b8a328dadcd0e7d8aa680e87f6139c4bbb5d2f3a1d3994711",
+    "IMG_20260905_164600187_HDR.jpg": "ee41b4dc00f2a80174d239927134f0b402237110c6a0f4a89e74ccb676ad8084",
+    "IMG_20260905_170229870.jpg": "05f2f805de5620ecc69ca376ae77639d88e9a7d326d48482f6e1f82f858298c7",
+    "IMG_20260905_170253443.jpg": "bf74d617fe27934242b90e865194576dedcaf6572e2e6c33e8ba3909cea4df71",
+    "IMG_20260905_170258570.jpg": "15b6b463732d2f47bdb81806805c16e5df5ad1dc78ba7dd170582397c047a3e2",
+    "IMG_20260905_170307621.jpg": "47d134b51988ff37033a083215abbeb37d38d86275fdf303700aa3cada11cbbf",
+    "IMG_20260905_170328724.jpg": "45d1dac80bc20ea106c0ac56fd71ec5600a5097b2d671223d8b26b4c15b5187c",
+    "IMG_20260905_170331780.jpg": "f7399b6c76e8c41b5b5f52abb9b177301bb5923ea33d66c347bab52f4750fb17",
+    "IMG_20260905_170334377.jpg": "b8b0c2693cb5e296b47620b42a8bd0db00ab56da4d10029bd0b2805a4fc2c615",
+    "IMG_20260905_170349389.jpg": "8023731e7521ffaa597b4c316f9ea0b6e9c031af943df2896940e6da8a9c393d",
+    "IMG_20260905_170352121.jpg": "dd51f356570561afc7e065c05d6ee079ba9a18ebd1e7e2c6a6af89340f9d9b8e",
+    "IMG_20260905_170354977.jpg": "cba812fc5707895538f72e655a6656d3e2705823aba81436893f125f925bac45",
+    "IMG_20260905_170646955.jpg": "01077215e8d79ade2164b6bc280bbdd028473144d2c4b9166505d8d6bde8dc41",
+    "IMG_20260905_170648775.jpg": "4896827399b8e63c5fbbc8c6f29a68101265fc074a9fcf5ec0e938a8cf3dbaa2",
+    "IMG_20260905_170653271.jpg": "6d5590a14d065ff083130515a9764117dbc9944ca6c2a9b757880bc33e7cc6ef",
+    "IMG_20260905_171108262.jpg": "788f4e092754566ea08547c4c41b8c7aba68c42e81168ad52016e20b5d6cd9af",
+    "IMG_20260905_171116014.jpg": "53826ddb68a4942e3ae8c0d9cc7ea8a6e04a51fb503331a410e0267659e31cf8",
+    "IMG_20260905_171118762.jpg": "ad9e08a970c712a27dac24ac3cbac5147f58672c917a3e9a7a6000619770b751",
+    "IMG_20260905_171213113.jpg": "0ce57d35d018f85317379fd9da59832be809408de1944f2ba9a8f25967659ad4",
+    "IMG_20260905_171217829.jpg": "5b81a91b73c46c5f946e2e67601e11c61968e6f0dc4fc56b1bb222036c0bd770",
+    "IMG_20260905_171222544.jpg": "3380ec19373fecc53a3ce226c2d1b24f3ea0e1a353410fa76dcd5b3b12a58119",
+    "IMG_20260905_171326643.jpg": "ed4fab02f16aec6977dee1305ebd5f20e67b4d5938c2539cfdefd51b49975690",
+    "IMG_20260905_171328769.jpg": "cf8ce9fdfda917ef2d2e552bfafca0983f893fadf367dae0f01fbd98f743474f",
+    "IMG_20260905_171331274.jpg": "a26f131b1424139d9a791d40c7ab19b3191af85fe770aa0fdb4ad5d930dc131e",
+    "IMG_20260905_171636024.jpg": "f02acd978e7b4a6665b83ff1593d6619d340389760b53db269405a47d8156610",
+    "IMG_20260905_171646036.jpg": "4c8fd17d1e33224fa05a6c9a44a9c94fc21ed427d41cfad7df0b1419e0bff7b2",
+    "IMG_20260905_171648752.jpg": "a03cbda96701171fb036a7706883b5138ac4e9a39bcc0a7217d1e0e822389b64",
+    "IMG_20260905_171754902.jpg": "d2a5d1fa843a56dff59bf3e54e4e71c0468d5826974cc5767f92220e2abf795a",
+    "IMG_20260905_171757087.jpg": "c5078aff3f5dde5c2e975878dc735490052ed5ea77228dfcd3cd924585dd1462",
+    "IMG_20260905_171804009.jpg": "15f2ba2b8eef450b31af152c943532d1a8b40bcfcf664df8c3fe4e0cbd22a477",
+    "IMG_20260905_173616288.jpg": "476d2e7116fa6a61fa488e5e8e8e11b74bc33d76025c4b9b00f2c7bbd76936a4",
+    "IMG_20260905_173620885.jpg": "b7f8074241f3ab68fdb95adff18378dfaaec6bf1b8d3d17777c1de637f58dfcc",
+    "IMG_20260905_173624382.jpg": "8fb4d418773940e08fbf8cafdcdf29206c376ae832373ed531c28a3a2b43d9b3",
+    "IMG_20260905_173659473.jpg": "4d5c299fca81a2799362f413441420c227d12ae46ff1999631e46d243f98b65c",
+    "IMG_20260905_173704157.jpg": "260e82335e6beb3f153bafcde41dfd2da10059b7c28723b8ea0c75e6ed92d8c8",
+    "IMG_20260905_173707179.jpg": "77ab65818557921508834b774f01b6f0eb983fc514aaf6f9a7fa47d19c38b9ec",
+    "IMG_20260905_174157196.jpg": "576f9e6e838c29be77a8ee19c15f91b7afea8d0e1038b1a488b79ebeb23a4126",
+    "IMG_20260905_174159244.jpg": "c91aee45d0d60771697f221cc55198f80d6e0ffe2a7c74e973f92ee2a300d2d2",
+    "IMG_20260905_174203862.jpg": "cc9f7bdc540ad11b7ed26ffe36248764b406d7c7987a234850fba90bff950a6b",
+    "IMG_20260905_174411272.jpg": "a109db55bf33ad5abff8f22320bc5791ee3791598df93bf1c64889e2719bb14f",
+    "IMG_20260905_174414839.jpg": "412f7007d1288e338b521d86f39406958c18d80cfff86b875d82d7fadaabebcc",
+    "IMG_20260905_174419063.jpg": "d708575ea4699d5cbfec704395d43951db85b31dde44bea95c7403b860b8052e"
+  },
+  "accepted_classes": [
+    {
+      "label": "Alpinia zerumbet 'Variegata'",
+      "common_name": "Variegated shell ginger",
+      "scientific_name": "Alpinia zerumbet",
+      "confidence": "high",
+      "evidence": "Broad lanceolate leaves with strong cream longitudinal striping, upright clumping ginger habit, and shell-ginger inflorescence.",
+      "alternatives": [
+        "Another variegated Alpinia cultivar; cultivar name is horticultural rather than taxonomic."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/872083-1",
+        "https://www.missouribotanicalgarden.org/PlantFinder/PlantFinderDetails.aspx?isprofile=0&pt=8&taxonid=263215"
+      ],
+      "filenames": [
+        "IMG_20260905_163020515.jpg",
+        "IMG_20260905_163024390.jpg",
+        "IMG_20260905_163028487.jpg"
+      ]
+    },
+    {
+      "label": "Sanchezia oblonga",
+      "common_name": "Variegated Sanchezia",
+      "scientific_name": "Sanchezia oblonga",
+      "confidence": "high",
+      "evidence": "Yellow/cream-veined ornamental shrub foliage in the first reticulate-vein run; root audit separated it from the flowering Pseuderanthemum run.",
+      "alternatives": [
+        "Sanchezia speciosa (synonym); Sanchezia nobilis horticultural usage."
+      ],
+      "source_urls": [
+        "https://www.nparks.gov.sg/florafaunaweb/species-search?search-category=flora&species-search=Sanchezia",
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A54890-1"
+      ],
+      "filenames": [
+        "IMG_20260905_163042836.jpg",
+        "IMG_20260905_163045550.jpg",
+        "IMG_20260905_163048223.jpg"
+      ]
+    },
+    {
+      "label": "Pseuderanthemum maculatum",
+      "common_name": "Yellow-vein eranthemum",
+      "scientific_name": "Pseuderanthemum maculatum",
+      "confidence": "high",
+      "evidence": "Yellow/cream reticulate venation plus white flowers with purple/magenta throat spots in the later flowering run.",
+      "alternatives": [
+        "Pseuderanthemum carruthersii horticultural complex; P. reticulatum is a synonym under current Kew treatment."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A77158889-1/general-information",
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A53323-1"
+      ],
+      "filenames": [
+        "IMG_20260905_170646955.jpg",
+        "IMG_20260905_170648775.jpg",
+        "IMG_20260905_170653271.jpg"
+      ]
+    },
+    {
+      "label": "Chrysalidocarpus lutescens",
+      "common_name": "Golden cane / areca palm",
+      "scientific_name": "Chrysalidocarpus lutescens",
+      "confidence": "high",
+      "evidence": "Dense multi-stemmed clump with yellow-green cane-like stems and gracefully arching pinnate fronds.",
+      "alternatives": [
+        "Other clustering areca-type palm; Dypsis lutescens is a former synonym."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A665962-1",
+        "https://www.nparks.gov.sg/florafaunaweb/flora/2/6/2622"
+      ],
+      "filenames": [
+        "IMG_20260905_163053355.jpg",
+        "IMG_20260905_163057089.jpg",
+        "IMG_20260905_163058863.jpg",
+        "IMG_20260905_163105671.jpg",
+        "IMG_20260905_163110405.jpg",
+        "IMG_20260905_163116088.jpg"
+      ]
+    },
+    {
+      "label": "Ixora coccinea",
+      "common_name": "Jungle flame / West Indian jasmine",
+      "scientific_name": "Ixora coccinea",
+      "confidence": "high",
+      "evidence": "Glossy opposite elliptic leaves and dense compact clusters of four-lobed red or pink star flowers; two color forms are retained under one species label.",
+      "alternatives": [
+        "Ixora hybrid or another cultivated Ixora species; cultivar/color identity is not asserted."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A753844-1"
+      ],
+      "filenames": [
+        "IMG_20260905_163237993.jpg",
+        "IMG_20260905_163240353_HDR.jpg",
+        "IMG_20260905_163242975_HDR.jpg",
+        "IMG_20260905_171636024.jpg",
+        "IMG_20260905_171646036.jpg",
+        "IMG_20260905_171648752.jpg"
+      ]
+    },
+    {
+      "label": "Serissa japonica",
+      "common_name": "Snowrose / tree of a thousand stars",
+      "scientific_name": "Serissa japonica",
+      "confidence": "medium",
+      "evidence": "Low clipped shrub with very small opposite leaves and numerous small solitary or clustered white pinwheel-like flowers.",
+      "alternatives": [
+        "Wrightia antidysenterica; gardenia or another small-leaved white-flowering hedge."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A766327-1",
+        "https://www.nparks.gov.sg/florafaunaweb/flora/2/4/2453",
+        "https://www.efloras.org/florataxon.aspx?flora_id=2&taxon_id=242425541"
+      ],
+      "filenames": [
+        "IMG_20260905_163405149_HDR.jpg",
+        "IMG_20260905_163408082.jpg",
+        "IMG_20260905_163411767_HDR.jpg"
+      ]
+    },
+    {
+      "label": "Tradescantia pallida 'Purpurea'",
+      "common_name": "Purple heart",
+      "scientific_name": "Tradescantia pallida",
+      "confidence": "high",
+      "evidence": "Trailing fleshy stems with narrow lanceolate leaves that are uniformly purple/burgundy.",
+      "alternatives": [
+        "Other purple Tradescantia cultivar; Setcreasea pallida is a synonym."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A256037-2"
+      ],
+      "filenames": [
+        "IMG_20260905_163509953.jpg",
+        "IMG_20260905_163512948.jpg",
+        "IMG_20260905_163517627.jpg"
+      ]
+    },
+    {
+      "label": "Duranta erecta",
+      "common_name": "Golden dewdrop",
+      "scientific_name": "Duranta erecta",
+      "confidence": "medium-high",
+      "evidence": "Clipped hedge with small opposite leaves, chartreuse/golden new growth, and Duranta-like axillary/terminal flower racemes.",
+      "alternatives": [
+        "Duranta erecta 'Gold Mound', 'Alba', or another yellow-leaved cultivar; cultivar is not asserted."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A330606-2",
+        "https://www.missouribotanicalgarden.org/PlantFinder/PlantFinderDetails.aspx?basic=Duranta+erecta&isprofile=1&taxonid=267145"
+      ],
+      "filenames": [
+        "IMG_20260905_163634864.jpg",
+        "IMG_20260905_163637683.jpg",
+        "IMG_20260905_163657810.jpg"
+      ]
+    },
+    {
+      "label": "Tecomaria capensis",
+      "common_name": "Cape honeysuckle",
+      "scientific_name": "Tecomaria capensis",
+      "confidence": "high",
+      "evidence": "Orange tubular flowers on a many-stemmed shrub/climber with pinnate, serrated leaflets.",
+      "alternatives": [
+        "Tecoma stans or another Bignoniaceae ornamental; the second yellow-flowered run is kept separate."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A111333-1/general-information",
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A111129-1"
+      ],
+      "filenames": [
+        "IMG_20260905_163748120.jpg",
+        "IMG_20260905_163750748.jpg",
+        "IMG_20260905_163800232.jpg"
+      ]
+    },
+    {
+      "label": "Sphagneticola trilobata",
+      "common_name": "Singapore daisy / Wedelia",
+      "scientific_name": "Sphagneticola trilobata",
+      "confidence": "medium-high",
+      "evidence": "Trailing groundcover with yellow daisy heads and opposite toothed to variably three-lobed leaves.",
+      "alternatives": [
+        "Sphagneticola calendulacea (Wedelia chinensis), especially where lobing is weak."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A1093589-2/general-information",
+        "https://powo.science.kew.org/taxon/993278-1"
+      ],
+      "filenames": [
+        "IMG_20260905_163851183.jpg",
+        "IMG_20260905_163854121.jpg",
+        "IMG_20260905_163856144.jpg"
+      ]
+    },
+    {
+      "label": "Mimusops elengi",
+      "common_name": "Bakul / Spanish cherry",
+      "scientific_name": "Mimusops elengi",
+      "confidence": "high",
+      "evidence": "The sign in IMG_20260905_164101098_HDR.jpg explicitly identifies Mimusops elengi; narrow glossy leaves agree. Only this sign-confirmed run is enrolled.",
+      "alternatives": [
+        "Another Mimusops or unrelated narrow-leaved ornamental cannot be ruled out for unsigned views."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/787918-1"
+      ],
+      "filenames": [
+        "IMG_20260905_164056731.jpg",
+        "IMG_20260905_164058938_HDR.jpg",
+        "IMG_20260905_164101098_HDR.jpg"
+      ]
+    },
+    {
+      "label": "Hibiscus × rosa-sinensis",
+      "common_name": "Chinese hibiscus",
+      "scientific_name": "Hibiscus × rosa-sinensis",
+      "confidence": "high",
+      "evidence": "Ornamental double red hibiscus flowers with glossy serrated leaves; cultivar-level identity is not asserted.",
+      "alternatives": [
+        "Other cultivated Hibiscus hybrid, including H. schizopetalus hybrids."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A560756-1/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_164156517.jpg",
+        "IMG_20260905_164159793.jpg",
+        "IMG_20260905_164205316.jpg"
+      ]
+    },
+    {
+      "label": "Tecoma stans",
+      "common_name": "Yellow bells / yellow elder",
+      "scientific_name": "Tecoma stans",
+      "confidence": "high",
+      "evidence": "Root audit resolved this separate yellow-flowered run as Tecoma stans: opposite pinnate leaves with toothed leaflets and yellow trumpet flowers.",
+      "alternatives": [
+        "Tecomaria capensis; Tecoma cultivar. It remains a separate class from the orange Cape honeysuckle run."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A111284-1/general-information",
+        "https://www.nparks.gov.sg/florafaunaweb/flora/3/1/3177"
+      ],
+      "filenames": [
+        "IMG_20260905_164304865_HDR.jpg",
+        "IMG_20260905_164307122_HDR.jpg",
+        "IMG_20260905_164310448_HDR.jpg"
+      ]
+    },
+    {
+      "label": "Combretum indicum",
+      "common_name": "Rangoon creeper",
+      "scientific_name": "Combretum indicum",
+      "confidence": "high",
+      "evidence": "Woody climber with opposite leaves and flowers changing white to pink to red, with long tubular buds.",
+      "alternatives": [
+        "Quisqualis indica is the common former name."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A77101543-1/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_164345534_HDR.jpg",
+        "IMG_20260905_164348365_HDR.jpg",
+        "IMG_20260905_164355391_HDR.jpg"
+      ]
+    },
+    {
+      "label": "Cordia sebestena",
+      "common_name": "Geiger tree / scarlet cordia",
+      "scientific_name": "Cordia sebestena",
+      "confidence": "high",
+      "evidence": "Root audit and NParks spot characters match large rough alternate ovate leaves and wrinkled orange funnel flowers in terminal clusters.",
+      "alternatives": [
+        "Cordia subcordata or another Cordia; flower/leaf combination strongly favors C. sebestena."
+      ],
+      "source_urls": [
+        "https://www.nparks.gov.sg/florafaunaweb/flora/2/8/2824"
+      ],
+      "filenames": [
+        "IMG_20260905_164419571_HDR.jpg",
+        "IMG_20260905_164423671_HDR.jpg",
+        "IMG_20260905_164426915_HDR.jpg"
+      ]
+    },
+    {
+      "label": "Caladium horticultural group",
+      "common_name": "Caladium",
+      "scientific_name": "Caladium bicolor horticultural group",
+      "confidence": "high",
+      "evidence": "Peltate heart-shaped leaves emerging from a tuberous clump with strong dark-green reticulate venation; one overexposed view is excluded.",
+      "alternatives": [
+        "Caladium hybrid; Colocasia/Xanthosoma are less consistent with the observed cultivated leaf form."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A30010088-2/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_170229870.jpg",
+        "IMG_20260905_170253443.jpg",
+        "IMG_20260905_170307621.jpg"
+      ]
+    },
+    {
+      "label": "Heptapleurum arboricola",
+      "common_name": "Dwarf umbrella tree",
+      "scientific_name": "Heptapleurum arboricola",
+      "confidence": "high",
+      "evidence": "Palmately compound leaflets in potted shrubs; one run has yellow-centered variegation and the other white margins. Species is shared; cultivar is not.",
+      "alternatives": [
+        "Schefflera arboricola is the widespread former name; juvenile H. actinophyllum is less likely."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A90845-1",
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A91930-1"
+      ],
+      "filenames": [
+        "IMG_20260905_170328724.jpg",
+        "IMG_20260905_170331780.jpg",
+        "IMG_20260905_170334377.jpg",
+        "IMG_20260905_170349389.jpg",
+        "IMG_20260905_170352121.jpg",
+        "IMG_20260905_170354977.jpg"
+      ]
+    },
+    {
+      "label": "Cordyline fruticosa",
+      "common_name": "Ti plant",
+      "scientific_name": "Cordyline fruticosa",
+      "confidence": "high-medium",
+      "evidence": "Burgundy strap-like leaves arranged in rosettes on red/purple stems or canes.",
+      "alternatives": [
+        "Dracaena reflexa or another Cordyline cultivar; Cordyline terminalis is a horticultural synonym."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A533580-1/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_171108262.jpg",
+        "IMG_20260905_171116014.jpg",
+        "IMG_20260905_171118762.jpg"
+      ]
+    },
+    {
+      "label": "Zingiber spectabile",
+      "common_name": "Beehive ginger",
+      "scientific_name": "Zingiber spectabile",
+      "confidence": "medium-high",
+      "evidence": "Ginger foliage with distinctive tan/brown honeycomb cone-shaped inflorescences.",
+      "alternatives": [
+        "Zingiber zerumbet (shampoo ginger); cone form favors Z. spectabile."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A798388-1"
+      ],
+      "filenames": [
+        "IMG_20260905_171213113.jpg",
+        "IMG_20260905_171217829.jpg",
+        "IMG_20260905_171222544.jpg"
+      ]
+    },
+    {
+      "label": "Dracaena trifasciata",
+      "common_name": "Snake plant",
+      "scientific_name": "Dracaena trifasciata",
+      "confidence": "high",
+      "evidence": "Upright rigid sword leaves with gray-green mottling and banding.",
+      "alternatives": [
+        "Sansevieria trifasciata is the former horticultural name."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A77164235-1"
+      ],
+      "filenames": [
+        "IMG_20260905_171326643.jpg",
+        "IMG_20260905_171328769.jpg",
+        "IMG_20260905_171331274.jpg"
+      ]
+    },
+    {
+      "label": "Hymenocallis littoralis",
+      "common_name": "Beach spider lily",
+      "scientific_name": "Hymenocallis littoralis",
+      "confidence": "medium-high",
+      "evidence": "Basal strap-leaf clump with white spider-like flowers, long recurved tepals, and a conspicuous central staminal cup.",
+      "alternatives": [
+        "Crinum asiaticum or another Hymenocallis; central cup and flower architecture favor H. littoralis."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A30048918-2",
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A327249-2/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_173616288.jpg",
+        "IMG_20260905_173620885.jpg",
+        "IMG_20260905_173624382.jpg"
+      ]
+    },
+    {
+      "label": "Plumeria rubra",
+      "common_name": "Pink frangipani",
+      "scientific_name": "Plumeria rubra",
+      "confidence": "high",
+      "evidence": "Pink/magenta five-petaled flowers with long leathery pointed leaves and frangipani branch structure.",
+      "alternatives": [
+        "Plumeria obtusa; leaf apex and flower color favor P. rubra."
+      ],
+      "source_urls": [
+        "https://powo.science.kew.org/taxon/urn%3Alsid%3Aipni.org%3Anames%3A81275-1/general-information"
+      ],
+      "filenames": [
+        "IMG_20260905_173659473.jpg",
+        "IMG_20260905_173704157.jpg",
+        "IMG_20260905_173707179.jpg"
+      ]
+    }
+  ],
+  "exclusions": [
+    {
+      "filename": "IMG_20260905_162948020.jpg",
+      "candidate": "Mixed ornamental bed",
+      "reason": "Multiple plants and no single defensible target."
+    },
+    {
+      "filename": "IMG_20260905_162951865.jpg",
+      "candidate": "Mixed ornamental bed",
+      "reason": "Multiple plants and no single defensible target."
+    },
+    {
+      "filename": "IMG_20260905_162954516.jpg",
+      "candidate": "Mixed ornamental bed",
+      "reason": "Multiple plants and no single defensible target."
+    },
+    {
+      "filename": "IMG_20260905_163832709_HDR.jpg",
+      "candidate": "Ambiguous narrow-leaved tree; possible Monoon longifolium",
+      "reason": "Sign is not legible/confirming; disputed Monoon/ornamental identity is not safe for enrollment."
+    },
+    {
+      "filename": "IMG_20260905_163835306.jpg",
+      "candidate": "Ambiguous narrow-leaved tree; possible Monoon longifolium",
+      "reason": "Sign is not legible/confirming; disputed Monoon/ornamental identity is not safe for enrollment."
+    },
+    {
+      "filename": "IMG_20260905_163838941.jpg",
+      "candidate": "Ambiguous narrow-leaved tree; possible Monoon longifolium",
+      "reason": "Sign is not legible/confirming; disputed Monoon/ornamental identity is not safe for enrollment."
+    },
+    {
+      "filename": "IMG_20260905_164128257.jpg",
+      "candidate": "Mixed palm/monocot bed",
+      "reason": "Several monocots/palm-like plants overlap; no single species target."
+    },
+    {
+      "filename": "IMG_20260905_164130699.jpg",
+      "candidate": "Mixed palm/monocot bed",
+      "reason": "Several monocots/palm-like plants overlap; no single species target."
+    },
+    {
+      "filename": "IMG_20260905_164140768.jpg",
+      "candidate": "Mixed palm/monocot bed",
+      "reason": "Several monocots/palm-like plants overlap; no single species target."
+    },
+    {
+      "filename": "IMG_20260905_164322649_HDR.jpg",
+      "candidate": "Tabernaemontana divaricata cf.",
+      "reason": "Glossy hedge has buds but no diagnostic open flowers or label; Wrightia/gardenia remain plausible."
+    },
+    {
+      "filename": "IMG_20260905_164325546_HDR.jpg",
+      "candidate": "Tabernaemontana divaricata cf.",
+      "reason": "Glossy hedge has buds but no diagnostic open flowers or label; Wrightia/gardenia remain plausible."
+    },
+    {
+      "filename": "IMG_20260905_164328572_HDR.jpg",
+      "candidate": "Tabernaemontana divaricata cf.",
+      "reason": "Glossy hedge has buds but no diagnostic open flowers or label; Wrightia/gardenia remain plausible."
+    },
+    {
+      "filename": "IMG_20260905_164553688_HDR.jpg",
+      "candidate": "Passiflora sp.",
+      "reason": "Tendrils, lobed leaves, and immature fruit support only genus-level identification; no flower."
+    },
+    {
+      "filename": "IMG_20260905_164556069_HDR.jpg",
+      "candidate": "Passiflora sp.",
+      "reason": "Tendrils, lobed leaves, and immature fruit support only genus-level identification; no flower."
+    },
+    {
+      "filename": "IMG_20260905_164600187_HDR.jpg",
+      "candidate": "Passiflora sp.",
+      "reason": "Tendrils, lobed leaves, and immature fruit support only genus-level identification; no flower."
+    },
+    {
+      "filename": "IMG_20260905_170258570.jpg",
+      "candidate": "Caladium horticultural group",
+      "reason": "Severely overexposed/low-detail view; excluded despite the other three Caladium views being usable."
+    },
+    {
+      "filename": "IMG_20260905_171754902.jpg",
+      "candidate": "Bougainvillea sp./hybrid",
+      "reason": "Genus is clear from papery bracts, but species/cultivar cannot be defended."
+    },
+    {
+      "filename": "IMG_20260905_171757087.jpg",
+      "candidate": "Bougainvillea sp./hybrid",
+      "reason": "Genus is clear from papery bracts, but species/cultivar cannot be defended."
+    },
+    {
+      "filename": "IMG_20260905_171804009.jpg",
+      "candidate": "Bougainvillea sp./hybrid",
+      "reason": "Genus is clear from papery bracts, but species/cultivar cannot be defended."
+    },
+    {
+      "filename": "IMG_20260905_174157196.jpg",
+      "candidate": "Plumeria sp.; likely P. alba or white P. rubra",
+      "reason": "White/yellow flower is too distant for species-level separation."
+    },
+    {
+      "filename": "IMG_20260905_174159244.jpg",
+      "candidate": "Plumeria sp.; likely P. alba or white P. rubra",
+      "reason": "White/yellow flower is too distant for species-level separation."
+    },
+    {
+      "filename": "IMG_20260905_174203862.jpg",
+      "candidate": "Plumeria sp.; likely P. alba or white P. rubra",
+      "reason": "White/yellow flower is too distant for species-level separation."
+    },
+    {
+      "filename": "IMG_20260905_174411272.jpg",
+      "candidate": "Calotropis sp.; likely C. gigantea/C. procera",
+      "reason": "Species-level separation requires closer corona/leaf/fruit characters; not part of the curated set."
+    },
+    {
+      "filename": "IMG_20260905_174414839.jpg",
+      "candidate": "Calotropis sp.; likely C. gigantea/C. procera",
+      "reason": "Species-level separation requires closer corona/leaf/fruit characters; not part of the curated set."
+    },
+    {
+      "filename": "IMG_20260905_174419063.jpg",
+      "candidate": "Calotropis sp.; likely C. gigantea/C. procera",
+      "reason": "Species-level separation requires closer corona/leaf/fruit characters; not part of the curated set."
+    }
+  ]
+}

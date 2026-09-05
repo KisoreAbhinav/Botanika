@@ -9,11 +9,14 @@ catalog revision does not require a database migration.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
 import re
 from typing import Any, Mapping
+
+from .catalog import CatalogDefinition, SourceRecord, SpeciesRecord
 
 
 class RegionalCatalogError(ValueError):
@@ -26,6 +29,88 @@ REGIONAL_CATEGORIES = (
     "Ornamental / cultivated",
     "Invasive / introduced",
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceCatalog:
+    """Source-backed records that may extend, but never replace, the model catalog.
+
+    The regional checklist intentionally has no model-release label map.  This
+    small view converts its validated records into the same immutable record
+    types used by the classifier so a campus label can attach sourced facts
+    without widening the seven-class production model.
+    """
+
+    catalog_id: str
+    version: str
+    region: str
+    sources: tuple[SourceRecord, ...]
+    species: tuple[SpeciesRecord, ...]
+    digest: str
+
+    def species_by_id(self) -> dict[str, SpeciesRecord]:
+        return {item.species_id: item for item in self.species}
+
+
+@dataclass(frozen=True, slots=True)
+class CampusCatalogView:
+    """Merged lookup surface for the immutable model and regional records."""
+
+    sources: tuple[SourceRecord, ...]
+    species: tuple[SpeciesRecord, ...]
+
+    def species_by_id(self) -> dict[str, SpeciesRecord]:
+        return {item.species_id: item for item in self.species}
+
+
+def load_reference_catalog(path: Path) -> ReferenceCatalog:
+    """Load the regional checklist as classifier/library-compatible records."""
+
+    raw = load_regional_catalog(Path(path))
+    sources = tuple(SourceRecord.from_dict(item) for item in raw["sources"])
+    source_ids = {item.source_id for item in sources}
+    species = tuple(
+        SpeciesRecord.from_dict(
+            {
+                **item,
+                # The regional schema has one root region rather than
+                # repeating it in each entry.
+                "region": raw["region"],
+            },
+            source_ids,
+        )
+        for item in raw["species"]
+    )
+    return ReferenceCatalog(
+        catalog_id=str(raw["catalog_id"]),
+        version=str(raw["version"]),
+        region=str(raw["region"]),
+        sources=sources,
+        species=species,
+        digest=str(raw["digest"]),
+    )
+
+
+def merge_catalog_views(
+    catalog: CatalogDefinition,
+    reference: ReferenceCatalog | None = None,
+) -> CampusCatalogView:
+    """Merge reference rows after model rows, preserving model metadata."""
+
+    species = list(catalog.species)
+    species_ids = {item.species_id for item in species}
+    sources = list(catalog.sources)
+    source_ids = {item.source_id for item in sources}
+    if reference is not None:
+        for item in reference.species:
+            if item.species_id not in species_ids:
+                species.append(item)
+                species_ids.add(item.species_id)
+        for item in reference.sources:
+            if item.source_id not in source_ids:
+                sources.append(item)
+                source_ids.add(item.source_id)
+    return CampusCatalogView(tuple(sources), tuple(species))
 
 
 def load_regional_catalog(path: Path) -> dict[str, Any]:
@@ -151,4 +236,12 @@ def _normalize(value: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", value.lower()).split())
 
 
-__all__ = ["REGIONAL_CATEGORIES", "RegionalCatalogError", "load_regional_catalog"]
+__all__ = [
+    "REGIONAL_CATEGORIES",
+    "CampusCatalogView",
+    "ReferenceCatalog",
+    "RegionalCatalogError",
+    "load_reference_catalog",
+    "load_regional_catalog",
+    "merge_catalog_views",
+]

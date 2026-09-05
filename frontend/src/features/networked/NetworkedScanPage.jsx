@@ -139,7 +139,15 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
         throw new Error("The crop dimensions changed during upload; retry this crop.");
       }
       setClassification(response.classification);
-      notify(response.classification?.result?.status === "accepted" ? "Plant identified by the Pi." : "The Pi could not accept this view.", "info");
+      const result = response.classification?.result;
+      notify(
+        result?.status === "accepted"
+          ? "Plant identified by the Pi."
+          : result?.validation_pending
+            ? "A provisional plant suggestion is ready; validation is pending."
+            : "The Pi could not accept this view.",
+        "info",
+      );
     } catch (caught) {
       if (caught.status === 401) onLeaseLost?.();
       setError(caught.message);
@@ -314,7 +322,31 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
             </button>
           </>
         )}
-        {result?.status === "uncertain" && <><h2>Not confident</h2><p>{result.short_notes || "Try another angle or a clearer crop."}</p><button type="button" className="btn quiet" onClick={clear} data-hotkey={CONTROL_SHORTCUTS.tryAnotherView} aria-keyshortcuts={CONTROL_SHORTCUTS.tryAnotherView}>Try another view <kbd aria-hidden="true">R</kbd></button></>}
+        {result?.status === "uncertain" && (
+          <>
+            <h2>{result.validation_pending ? "Validation pending" : "Not confident"}</h2>
+            <p>
+              {result.validation_pending
+                ? "This is a provisional suggestion. Independent field validation is incomplete, so it cannot be saved yet."
+                : result.short_notes || "Try another angle or a clearer crop."}
+            </p>
+            {result.validation_pending && result.suggestions?.length > 0 && (
+              <div className="networked-suggestions">
+                {result.suggestions.map((suggestion) => (
+                  <div className="suggestion-row" key={suggestion.scientific_name}>
+                    <span>
+                      {suggestion.common_name}
+                      <div className="sci">{suggestion.scientific_name}</div>
+                    </span>
+                    <span className="mono">{formatConfidence(suggestion.confidence)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {result.validation_pending && result.short_notes && <p className="side-copy">{result.short_notes}</p>}
+            <button type="button" className="btn quiet" onClick={clear} data-hotkey={CONTROL_SHORTCUTS.tryAnotherView} aria-keyshortcuts={CONTROL_SHORTCUTS.tryAnotherView}>Try another view <kbd aria-hidden="true">R</kbd></button>
+          </>
+        )}
         {result && !["accepted", "uncertain"].includes(result.status) && <><h2>Pi classifier unavailable</h2><p>{result.error || "No result was produced."}</p><button type="button" className="btn quiet" onClick={classify} disabled={busy} data-hotkey={CONTROL_SHORTCUTS.identifyCrop} aria-keyshortcuts={CONTROL_SHORTCUTS.identifyCrop}>Retry crop upload <kbd aria-hidden="true">I</kbd></button></>}
         {error && <p className="mode-error" role="alert">{error}</p>}
       </section>

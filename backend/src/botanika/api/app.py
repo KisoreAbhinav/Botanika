@@ -93,6 +93,7 @@ async def _lifespan(app: FastAPI):
     knowledge = KnowledgeStore(
         settings.database_path,
         settings.species_catalog_path,
+        reference_catalog_path=settings.regional_catalog_path,
     )
     if settings.legacy_demo_mode:
         library = DemoLibrary(

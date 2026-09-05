@@ -72,6 +72,7 @@ async def search_knowledge(
 async def knowledge_status(request: Request) -> dict[str, Any]:
     runtime = get_runtime(request)
     require_local_or_controller(runtime, request)
+    reference = getattr(runtime.knowledge, "reference_catalog", None)
     return {
         "catalog": {
             "catalog_id": runtime.knowledge.catalog.catalog_id,
@@ -79,6 +80,17 @@ async def knowledge_status(request: Request) -> dict[str, Any]:
             "region": runtime.knowledge.catalog.region,
             "digest": runtime.knowledge.catalog.digest,
         },
+        "reference_catalog": (
+            {
+                "catalog_id": reference.catalog_id,
+                "version": reference.version,
+                "region": reference.region,
+                "digest": reference.digest,
+                "species_count": len(reference.species),
+            }
+            if reference is not None
+            else None
+        ),
         "ingestion": runtime.knowledge.ingestion_status(),
         "manifest_digest": runtime.knowledge.knowledge_manifest()["manifest_digest"],
         "fts5": True,

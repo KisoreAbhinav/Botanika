@@ -63,7 +63,7 @@ function drawScene(context, canvas, snapshot) {
       label = recognizedLabels.top;
       subLabel = recognizedLabels.bottom;
     } else if (selected && result && result.status === "uncertain") {
-      label = "Not confident";
+      label = result.validation_pending ? "Validation pending" : "Not confident";
     } else {
       label = formatDetectorLabel(detection.label);
     }

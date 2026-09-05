@@ -49,6 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--embedding-model", type=Path, default=settings.embedding_model_path)
     parser.add_argument("--campus-artifact", type=Path, default=settings.campus_classifier_model_path)
     parser.add_argument("--catalog", type=Path, default=settings.species_catalog_path)
+    parser.add_argument("--regional-catalog", type=Path, default=settings.regional_catalog_path)
     parser.add_argument("--llm-model", type=Path, default=settings.llm_model_path)
     parser.add_argument("--llama-cli", type=str, default=settings.llama_cli_path)
     parser.add_argument("--stt-models", type=Path, default=settings.stt_models_path)
@@ -88,7 +89,13 @@ def main(argv: list[str] | None = None) -> int:
     if embedding_result["status"] != "ok":
         result["status"] = "degraded"
 
-    campus_result = _check_campus(args.campus_artifact, args.embedding_model, args.catalog, images)
+    campus_result = _check_campus(
+        args.campus_artifact,
+        args.embedding_model,
+        args.catalog,
+        args.regional_catalog,
+        images,
+    )
     result["models"]["campus_classifier"] = campus_result
     if campus_result["status"] == "error":
         result["status"] = "degraded"
@@ -216,12 +223,23 @@ def _check_embedding(model_path: Path, images: list[Path]) -> dict[str, Any]:
         return {"status": "error", "detail": str(exc), "elapsed_ms": round((time.perf_counter() - started) * 1000.0, 2)}
 
 
-def _check_campus(artifact_path: Path, embedding_path: Path, catalog_path: Path, images: list[Path]) -> dict[str, Any]:
+def _check_campus(
+    artifact_path: Path,
+    embedding_path: Path,
+    catalog_path: Path,
+    regional_catalog_path: Path,
+    images: list[Path],
+) -> dict[str, Any]:
     if not artifact_path.is_file():
         return {"status": "not-configured", "detail": f"No campus artifact at {artifact_path}; enroll campus photos first."}
     started = time.perf_counter()
     try:
-        classifier = CampusFewShotClassifier(artifact_path, embedding_path, catalog_path)
+        classifier = CampusFewShotClassifier(
+            artifact_path,
+            embedding_path,
+            catalog_path,
+            regional_catalog_path=regional_catalog_path,
+        )
         rows = []
         for path in images:
             image = cv2.imread(str(path), cv2.IMREAD_COLOR)

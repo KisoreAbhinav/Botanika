@@ -11,7 +11,7 @@ from unittest import mock
 import cv2
 import numpy as np
 
-from botanika.core.settings import DEFAULT_SPECIES_CATALOG
+from botanika.core.settings import DEFAULT_REGIONAL_CATALOG, DEFAULT_SPECIES_CATALOG
 from botanika.knowledge import KnowledgeStore
 from botanika.storage import DiscoveryLibrary
 from botanika.vision.classification import (
@@ -20,6 +20,7 @@ from botanika.vision.classification import (
     ClassificationStatus,
     CAMPUS_ARTIFACT_FORMAT,
     CampusFewShotClassifier,
+    ClassifierError,
     EnrollmentError,
     build_enrollment_artifact,
     campus_label_id,
@@ -183,12 +184,16 @@ class CampusClassifierContractTests(unittest.TestCase):
             self.assertEqual(artifact["metrics"]["training_observations"], 10)
             self.assertEqual(artifact["metrics"]["held_out_observations"], 6)
             self.assertEqual(artifact["metrics"]["unknown_observations"], 5)
+            self.assertIn("coverage", artifact["metrics"]["leave_one_out"])
+            self.assertIn("abstentions", artifact["metrics"]["leave_one_out"])
+            self.assertIn("wrong_label", artifact["metrics"]["leave_one_out"])
             self.assertFalse(artifact["deployment_ready"])
             self.assertFalse(classifier.deployment_ready)
             result = classifier.classify(np.full((80, 80, 3), (45, 150, 45), dtype=np.uint8))
             self.assertEqual(result.status, ClassificationStatus.UNCERTAIN)
             self.assertTrue(result.suggestions)
             self.assertFalse(result.suggestions[0].catalogued)
+            self.assertTrue(result.validation_pending)
 
     def test_checksummed_ready_claim_cannot_bypass_failed_evidence_gate(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -228,6 +233,41 @@ class CampusClassifierContractTests(unittest.TestCase):
             result = classifier.classify(np.full((80, 80, 3), (30, 140, 30), dtype=np.uint8))
             self.assertEqual(result.status, ClassificationStatus.UNCERTAIN)
 
+    def test_sample_count_cannot_bypass_embedding_count_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dataset = root / "train" / "Campus Tree"
+            for index in range(2):
+                _write_fixture_image(dataset / f"{index}.png", (30, 140, 30), index + 1)
+            artifact_path = root / "campus.json"
+            with mock.patch(
+                "botanika.vision.classification.fewshot.MobileNetV2Embedder",
+                _FakeEmbedder,
+            ):
+                build_enrollment_artifact(
+                    root / "train",
+                    artifact_path,
+                    embedding_model_path=root / "fake.onnx",
+                    catalog_path=DEFAULT_SPECIES_CATALOG,
+                    min_images_per_label=2,
+                )
+            raw = json.loads(artifact_path.read_text(encoding="utf-8"))
+            raw["labels"][0]["sample_count"] = 5
+            raw["artifact_sha256"] = hashlib.sha256(
+                canonical_json({key: value for key, value in raw.items() if key != "artifact_sha256"})
+            ).hexdigest()
+            artifact_path.write_text(json.dumps(raw, indent=2, sort_keys=True), encoding="utf-8")
+            with mock.patch(
+                "botanika.vision.classification.fewshot.load_embedding_model",
+                side_effect=lambda path, metadata: _FakeEmbedder(path),
+            ):
+                with self.assertRaisesRegex(ClassifierError, "sample_count"):
+                    CampusFewShotClassifier(
+                        artifact_path,
+                        root / "fake.onnx",
+                        DEFAULT_SPECIES_CATALOG,
+                    )
+
     def test_enrollment_rejects_near_duplicate_across_splits(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -257,6 +297,69 @@ class CampusClassifierContractTests(unittest.TestCase):
                         held_out_dir=root / "held-out",
                         min_images_per_label=2,
                     )
+
+    def test_reviewed_campus_labels_join_regional_facts_with_qualified_forms(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            train = root / "train"
+            fixtures = {
+                "Alpinia zerumbet 'Variegata'": ((20, 150, 40), 10),
+                "Tradescantia pallida 'Purpurea'": ((100, 20, 130), 30),
+                "Caladium horticultural group": ((30, 80, 180), 50),
+                "Sanchezia oblonga": ((40, 180, 80), 70),
+                "Cordia sebestena": ((180, 120, 40), 90),
+                "Mimusops elengi": ((50, 110, 60), 110),
+            }
+            for label, (base, seed) in fixtures.items():
+                for index in range(2):
+                    _write_fixture_image(train / label / f"{index}.png", base, seed + index)
+            artifact_path = root / "campus.json"
+
+            with mock.patch(
+                "botanika.vision.classification.fewshot.MobileNetV2Embedder",
+                _FakeEmbedder,
+            ):
+                artifact = build_enrollment_artifact(
+                    train,
+                    artifact_path,
+                    embedding_model_path=root / "fake.onnx",
+                    catalog_path=DEFAULT_SPECIES_CATALOG,
+                    regional_catalog_path=DEFAULT_REGIONAL_CATALOG,
+                    min_images_per_label=2,
+                )
+
+            joins = {item["display_name"]: item["catalog_species_id"] for item in artifact["labels"]}
+            self.assertEqual(joins["Alpinia zerumbet 'Variegata'"], "in:alpinia-zerumbet")
+            self.assertEqual(joins["Tradescantia pallida 'Purpurea'"], "in:tradescantia-pallida")
+            self.assertEqual(joins["Caladium horticultural group"], "in:caladium-bicolor-horticultural-group")
+            self.assertEqual(joins["Sanchezia oblonga"], "in:sanchezia-oblonga")
+            self.assertEqual(joins["Cordia sebestena"], "in:cordia-sebestena")
+            self.assertEqual(joins["Mimusops elengi"], "in:mimusops-elengi")
+
+            with mock.patch(
+                "botanika.vision.classification.fewshot.load_embedding_model",
+                side_effect=lambda path, metadata: _FakeEmbedder(path),
+            ):
+                classifier = CampusFewShotClassifier(
+                    artifact_path,
+                    root / "fake.onnx",
+                    DEFAULT_SPECIES_CATALOG,
+                    regional_catalog_path=DEFAULT_REGIONAL_CATALOG,
+                )
+                with self.assertRaisesRegex(ClassifierError, "catalog species"):
+                    CampusFewShotClassifier(
+                        artifact_path,
+                        root / "fake.onnx",
+                        DEFAULT_SPECIES_CATALOG,
+                    )
+            # Provisional artifacts still abstain at runtime; inspect the
+            # catalog-backed suggestions directly to ensure the join is not
+            # replaced with an invented campus placeholder.
+            for index, label in enumerate(classifier._labels):
+                suggestion = classifier._suggestion(index, 0.9)
+                self.assertTrue(suggestion.catalogued)
+                if label["display_name"] == "Caladium horticultural group":
+                    self.assertIn("horticultural group", suggestion.scientific_name)
 
 
 class _FixedClassifier:

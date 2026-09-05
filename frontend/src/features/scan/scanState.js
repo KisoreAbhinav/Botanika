@@ -5,8 +5,13 @@ export function deriveScanPanelState(snapshot) {
   const result = snapshot && snapshot.classification ? snapshot.classification.result : null;
   if (!result) return "guidance";
   if (result.status === "accepted") return "result";
+  if (isValidationPendingResult(result)) return "validation-pending";
   if (result.status === "uncertain") return "uncertain";
   return "error";
+}
+
+export function isValidationPendingResult(result) {
+  return Boolean(result && result.status === "uncertain" && result.validation_pending === true);
 }
 
 export function selectedFallbackIndex(snapshot) {

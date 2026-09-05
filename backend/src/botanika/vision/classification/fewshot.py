@@ -29,6 +29,12 @@ import cv2
 import numpy as np
 
 from botanika.knowledge.catalog import CatalogDefinition, load_catalog, normalize_name
+from botanika.knowledge.regional import (
+    CampusCatalogView,
+    ReferenceCatalog,
+    load_reference_catalog,
+    merge_catalog_views,
+)
 
 from .classifier import (
     ClassificationResult,
@@ -110,6 +116,7 @@ class CampusFewShotClassifier(SpeciesClassifier):
         embedding_model_path: Path,
         catalog_path: Path,
         *,
+        regional_catalog_path: Path | None = None,
         acceptance_threshold: float | None = None,
     ) -> None:
         self.artifact_path = Path(artifact_path).expanduser().resolve()
@@ -117,6 +124,16 @@ class CampusFewShotClassifier(SpeciesClassifier):
         self._raw_artifact = raw
         self._verify_artifact_checksum(raw)
         self.catalog: CatalogDefinition = load_catalog(Path(catalog_path))
+        reference = (
+            load_reference_catalog(Path(regional_catalog_path))
+            if regional_catalog_path is not None
+            else None
+        )
+        self.reference_catalog: ReferenceCatalog | None = reference
+        # Keep the seven-class model catalog immutable while allowing a
+        # campus artifact to join explicitly reviewed species in the separate
+        # regional reference catalog.
+        self.catalog_view: CampusCatalogView = merge_catalog_views(self.catalog, reference)
         embedding_raw = raw.get("embedding_model")
         if not isinstance(embedding_raw, Mapping):
             raise ClassifierError("campus artifact embedding_model metadata is missing")
@@ -130,9 +147,10 @@ class CampusFewShotClassifier(SpeciesClassifier):
         labels = raw.get("labels")
         if not isinstance(labels, list) or not labels:
             raise ClassifierError("campus artifact requires a non-empty labels list")
-        self._labels = _validate_labels(labels, self.embedder.dimensions, self.catalog)
+        self._labels = _validate_labels(labels, self.embedder.dimensions, self.catalog_view)
         self.label_map = MappingProxyType({index: item["label_id"] for index, item in enumerate(self._labels)})
-        self._catalog_by_id = self.catalog.species_by_id()
+        self._catalog_by_id = self.catalog_view.species_by_id()
+        self._validate_catalog_provenance()
         self._prototypes = np.asarray([item["prototype"] for item in self._labels], dtype=np.float32)
         self._samples = [np.asarray(item["embeddings"], dtype=np.float32) for item in self._labels]
         calibration = raw.get("calibration") if isinstance(raw.get("calibration"), Mapping) else {}
@@ -177,6 +195,58 @@ class CampusFewShotClassifier(SpeciesClassifier):
             label_count=len(self._labels),
             labels=tuple(str(item["display_name"]) for item in self._labels),
         )
+
+    def _validate_catalog_provenance(self) -> None:
+        """Fail closed if an artifact is used with a different catalog.
+
+        A campus artifact stores catalog joins by immutable species ID.  The
+        facts shown for those joins are therefore only safe when the exact
+        catalog revision used at enrollment is present at runtime.  The
+        regional catalog is optional for arbitrary campus labels, but becomes
+        mandatory when the artifact contains a regional join.
+        """
+
+        provenance = self._raw_artifact.get("provenance")
+        if not isinstance(provenance, Mapping):
+            raise ClassifierError("campus artifact provenance is missing")
+
+        expected_primary = {
+            "catalog_id": self.catalog.catalog_id,
+            "catalog_version": self.catalog.version,
+            "catalog_digest": self.catalog.digest,
+        }
+        for field, expected in expected_primary.items():
+            actual = str(provenance.get(field) or "")
+            if actual != expected:
+                raise ClassifierError(
+                    f"campus artifact {field} mismatch: expected {expected}, got {actual or '<missing>'}"
+                )
+
+        joined = {
+            str(item.get("catalog_species_id"))
+            for item in self._labels
+            if item.get("catalog_species_id")
+        }
+        primary_ids = set(self.catalog.species_by_id())
+        regional_joined = joined - primary_ids
+        if not regional_joined:
+            return
+        if self.reference_catalog is None:
+            raise ClassifierError("campus artifact contains regional catalog joins but no regional catalog is configured")
+        reference = provenance.get("reference_catalog")
+        if not isinstance(reference, Mapping):
+            raise ClassifierError("campus artifact contains regional joins but reference catalog provenance is missing")
+        expected_regional = {
+            "catalog_id": self.reference_catalog.catalog_id,
+            "version": self.reference_catalog.version,
+            "digest": self.reference_catalog.digest,
+        }
+        for field, expected in expected_regional.items():
+            actual = str(reference.get(field) or "")
+            if actual != expected:
+                raise ClassifierError(
+                    f"campus artifact reference catalog {field} mismatch: expected {expected}, got {actual or '<missing>'}"
+                )
 
     @property
     def metadata(self) -> CampusModelMetadata:
@@ -223,16 +293,20 @@ class CampusFewShotClassifier(SpeciesClassifier):
             },
         )
         if accepted is None or not self.deployment_ready:
-            if not self.deployment_ready:
-                note = (
-                    "Campus labels are enrolled and suggestions are available, but this index is not production-validated. "
-                    "Supply independent held-out images and unknown images before enabling saves."
-                )
-            else:
+            if accepted is None:
                 note = (
                     "This view is outside the confident campus-label range or is too close to another label. "
                     "Try a clear leaf, flower, fruit, bark, or whole-plant view."
                 )
+                if not self.deployment_ready:
+                    note += " The enrolled index is also provisional, so saves remain disabled until validation is complete."
+                validation_pending = False
+            else:
+                note = (
+                    "Campus labels are enrolled and suggestions are available, but this index is not production-validated. "
+                    "Supply independent held-out images and unknown images before enabling saves."
+                )
+                validation_pending = True
             return ClassificationResult(
                 status=ClassificationStatus.UNCERTAIN,
                 confidence=confidence,
@@ -240,6 +314,7 @@ class CampusFewShotClassifier(SpeciesClassifier):
                 sources=("botanika:campus-fewshot-enrollment",),
                 classifier_version=self.classifier_version,
                 suggestions=suggestions,
+                validation_pending=validation_pending,
             )
 
         label = self._labels[best]
@@ -250,7 +325,7 @@ class CampusFewShotClassifier(SpeciesClassifier):
                 return self._failure(ClassificationStatus.ERROR, f"campus artifact catalog label is missing: {catalog_id}")
             source_urls = tuple(
                 source.url
-                for source in self.catalog.sources
+                for source in self.catalog_view.sources
                 if source.source_id in species.source_ids
             )
             return ClassificationResult(
@@ -383,6 +458,7 @@ def build_enrollment_artifact(
     *,
     embedding_model_path: Path,
     catalog_path: Path,
+    regional_catalog_path: Path | None = None,
     held_out_dir: Path | None = None,
     unknown_dir: Path | None = None,
     catalog_map: Mapping[str, str] | None = None,
@@ -397,6 +473,12 @@ def build_enrollment_artifact(
     if min_images_per_label < 2:
         raise EnrollmentError("at least two enrollment images per label are required")
     catalog = load_catalog(Path(catalog_path))
+    reference = (
+        load_reference_catalog(Path(regional_catalog_path))
+        if regional_catalog_path is not None
+        else None
+    )
+    catalog_view = merge_catalog_views(catalog, reference)
     # Only the reviewed, penultimate-feature export is supported.  Do not
     # silently build an artifact against an arbitrary ONNX file.
     try:
@@ -432,7 +514,7 @@ def build_enrollment_artifact(
     labels = []
     for label_name in sorted(all_records, key=str.casefold):
         label_id = campus_label_id(label_name)
-        matched = _catalog_join(label_name, catalog, catalog_map or {})
+        matched = _catalog_join(label_name, catalog_view, catalog_map or {})
         records = all_records[label_name]
         vectors = np.asarray([item["embedding"] for item in records], dtype=np.float32)
         prototype = _unit(vectors.mean(axis=0))
@@ -481,6 +563,17 @@ def build_enrollment_artifact(
         "catalog_id": catalog.catalog_id,
         "catalog_version": catalog.version,
         "catalog_digest": catalog.digest,
+        "reference_catalog": (
+            {
+                "catalog_id": reference.catalog_id,
+                "version": reference.version,
+                "region": reference.region,
+                "digest": reference.digest,
+                "species_count": len(reference.species),
+            }
+            if reference is not None
+            else None
+        ),
         "created_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "held_out_group_counts": _heldout_group_counts(Path(held_out_dir).expanduser().resolve(), set(train)) if held_out_dir else {},
         "independent_plant_ids_available": _has_nested_groups(Path(held_out_dir).expanduser().resolve(), set(train)) if held_out_dir else False,
@@ -561,7 +654,7 @@ def _read_artifact(path: Path) -> dict[str, Any]:
     return raw
 
 
-def _validate_labels(labels: list[Any], dimensions: int, catalog: CatalogDefinition) -> list[dict[str, Any]]:
+def _validate_labels(labels: list[Any], dimensions: int, catalog: CampusCatalogView) -> list[dict[str, Any]]:
     values: list[dict[str, Any]] = []
     label_ids: set[str] = set()
     hashes: set[str] = set()
@@ -585,6 +678,15 @@ def _validate_labels(labels: list[Any], dimensions: int, catalog: CatalogDefinit
             raise ClassifierError(f"campus label {display!r} has invalid embedding dimensions")
         if not np.all(np.isfinite(prototype)) or not np.all(np.isfinite(embeddings)):
             raise ClassifierError(f"campus label {display!r} has non-finite embeddings")
+        sample_count = item.get("sample_count")
+        if (
+            isinstance(sample_count, bool)
+            or not isinstance(sample_count, int)
+            or sample_count != int(embeddings.shape[0])
+        ):
+            raise ClassifierError(
+                f"campus label {display!r} sample_count does not match embeddings"
+            )
         sample_entries = item.get("samples")
         if not isinstance(sample_entries, list) or len(sample_entries) != embeddings.shape[0]:
             raise ClassifierError(f"campus label {display!r} samples do not match embeddings")
@@ -671,7 +773,10 @@ def _recomputed_deployment_blockers(
         for label in labels
     )
     if provenance.get("independent_plant_ids_available") is not True or not groups_valid:
-        add("held-out folders must identify at least three independent plants/sessions per label")
+        add(
+            "held-out folders must identify at least three independent plants/sessions per label; "
+            "five views of one plant are not independent evidence"
+        )
     return values
 
 
@@ -761,7 +866,7 @@ def _find_duplicates(records: Sequence[Mapping[str, Any]]) -> list[tuple[str, st
     return duplicates
 
 
-def _catalog_join(label: str, catalog: CatalogDefinition, explicit: Mapping[str, str]) -> str | None:
+def _catalog_join(label: str, catalog: CampusCatalogView, explicit: Mapping[str, str]) -> str | None:
     explicit_value = explicit.get(label)
     if explicit_value is not None:
         if explicit_value not in catalog.species_by_id():
@@ -798,12 +903,7 @@ def _evaluate(labels: Sequence[Mapping[str, Any]], train: Mapping[str, Sequence[
             winner = accepted_label_index(scores, calibration)
             predicted = names[winner] if winner is not None else "__unknown__"
             heldout_predictions.append((label, predicted, float(np.max(scores))))
-    heldout_metrics = _classification_metrics(heldout_predictions, names) if heldout_predictions else {
-        "observations": 0,
-        "accuracy": None,
-        "macro_f1": None,
-        "per_class": {},
-    }
+    heldout_metrics = _classification_metrics(heldout_predictions, names)
     unknown_scores: list[float] = []
     rejected = 0
     for record in unknown:
@@ -850,7 +950,16 @@ def _evaluate(labels: Sequence[Mapping[str, Any]], train: Mapping[str, Sequence[
 
 def _classification_metrics(predictions: Sequence[tuple[str, str, float]], names: Sequence[str]) -> dict[str, Any]:
     if not predictions:
-        return {"observations": 0, "accuracy": None, "macro_f1": None, "per_class": {}}
+        return {
+            "observations": 0,
+            "accuracy": None,
+            "accepted_accuracy": None,
+            "coverage": None,
+            "abstentions": 0,
+            "wrong_label": 0,
+            "macro_f1": None,
+            "per_class": {},
+        }
     per_class: dict[str, dict[str, float | int]] = {}
     for name in names:
         tp = sum(actual == name and predicted == name for actual, predicted, _ in predictions)
@@ -862,9 +971,24 @@ def _classification_metrics(predictions: Sequence[tuple[str, str, float]], names
         f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
         per_class[name] = {"precision": precision, "recall": recall, "f1": f1, "support": support}
     accuracy = sum(actual == predicted for actual, predicted, _ in predictions) / len(predictions)
+    abstentions = sum(predicted == "__unknown__" for _, predicted, _ in predictions)
+    wrong_label = sum(
+        predicted != actual and predicted != "__unknown__"
+        for actual, predicted, _ in predictions
+    )
+    accepted = len(predictions) - abstentions
     return {
         "observations": len(predictions),
         "accuracy": accuracy,
+        # These selective metrics make a provisional index auditable: a low
+        # overall score can be caused by honest abstention rather than a
+        # confident wrong species.  They are still not independent evidence.
+        "accepted_accuracy": sum(actual == predicted for actual, predicted, _ in predictions) / accepted
+        if accepted
+        else None,
+        "coverage": accepted / len(predictions),
+        "abstentions": abstentions,
+        "wrong_label": wrong_label,
         "macro_f1": sum(float(item["f1"]) for item in per_class.values()) / len(per_class),
         "per_class": per_class,
     }

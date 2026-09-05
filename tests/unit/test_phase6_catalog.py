@@ -59,6 +59,7 @@ class Phase6CatalogTests(unittest.TestCase):
         self.assertFalse(result.is_stub)
         self.assertFalse(classifier.deployment_ready)
         self.assertIn("field validation is incomplete", result.short_notes)
+        self.assertTrue(result.validation_pending)
 
     def test_compact_classifier_accepts_catalog_join_after_release_gate(self):
         with tempfile.TemporaryDirectory() as directory:

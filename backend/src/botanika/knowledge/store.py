@@ -14,6 +14,7 @@ import uuid
 from botanika.storage.database import SQLiteDatabase, utc_now
 
 from .catalog import CatalogDefinition, CatalogIntegrityError, SpeciesRecord, load_catalog, normalize_name
+from .regional import ReferenceCatalog, load_reference_catalog
 from .embeddings import (
     DEFAULT_DIMENSIONS,
     EMBEDDING_VERSION,
@@ -72,11 +73,27 @@ class GroundedAnswer:
 class KnowledgeStore:
     """SQLite-backed, provenance-first catalog and FTS5 knowledge store."""
 
-    def __init__(self, database_path: Path, catalog_path: Path, *, seed: bool = True) -> None:
+    def __init__(
+        self,
+        database_path: Path,
+        catalog_path: Path,
+        *,
+        seed: bool = True,
+        reference_catalog_path: Path | None = None,
+    ) -> None:
         self.database = SQLiteDatabase(Path(database_path))
         try:
             self.catalog_path = Path(catalog_path)
             self.catalog: CatalogDefinition = load_catalog(self.catalog_path)
+            self.reference_catalog_path = (
+                Path(reference_catalog_path) if reference_catalog_path is not None else None
+            )
+            self.reference_catalog: ReferenceCatalog | None = (
+                load_reference_catalog(self.reference_catalog_path)
+                if self.reference_catalog_path is not None
+                else None
+            )
+            self._reference_species: dict[str, SpeciesRecord] = {}
             if seed:
                 self.seed_catalog()
         except Exception:
@@ -258,6 +275,8 @@ class KnowledgeStore:
                             (species.species_id, note.text, note.source_id),
                         )
 
+            self._seed_reference_catalog(connection, now)
+
             release = self.catalog.model_release
             connection.execute(
                 """
@@ -312,6 +331,267 @@ class KnowledgeStore:
             )
             self._rebuild_embedding_index(connection, now)
 
+    def _seed_reference_catalog(self, connection, now: str) -> None:
+        """Seed regional facts without changing the active model catalog."""
+
+        reference = self.reference_catalog
+        if reference is None:
+            # The primary catalog seed has already rebuilt model knowledge
+            # chunks.  Do not advertise a reference catalog left behind by a
+            # database that was previously opened with regional data.
+            connection.execute(
+                "DELETE FROM catalog_metadata WHERE key LIKE 'regional_catalog_%'"
+            )
+            self._reference_species = {}
+            return
+
+        existing_meta = {
+            row["key"]: row["value"]
+            for row in connection.execute("SELECT key, value FROM catalog_metadata")
+        }
+        stored_digest = existing_meta.get("regional_catalog_digest")
+        stored_version = existing_meta.get("regional_catalog_version")
+        regional_version_changed = (
+            stored_version is not None and stored_version != reference.version
+        )
+        if (
+            stored_digest
+            and stored_digest != reference.digest
+            and not regional_version_changed
+        ):
+            raise CatalogIntegrityError(
+                "regional catalog digest changed without a catalog version bump"
+            )
+
+        if regional_version_changed:
+            # A regional revision is independent from the seven-class model
+            # catalog, so the model seed above does not clear these rows.  The
+            # source association is the durable ownership marker for regional
+            # seed material.  Remove only derived facts/joins before inserting
+            # the new revision; retain the species row itself so historical
+            # discovery records remain valid even when a checklist item is
+            # retired.
+            old_species_ids = [
+                str(row["species_id"])
+                for row in connection.execute(
+                    "SELECT DISTINCT species_id FROM species_sources "
+                    "WHERE role = 'regional-reference'"
+                ).fetchall()
+            ]
+            old_source_ids = [
+                str(row["source_id"])
+                for row in connection.execute(
+                    "SELECT DISTINCT source_id FROM species_sources "
+                    "WHERE role IN ('regional-reference', 'image-reference')"
+                ).fetchall()
+            ]
+            model_ids = set(self.catalog.species_by_id())
+            for species_id in old_species_ids:
+                if species_id in model_ids:
+                    # A model record owns aliases/chunks for an overlapping
+                    # ID; only the regional edge is removed below.
+                    connection.execute(
+                        "DELETE FROM species_sources WHERE species_id = ? "
+                        "AND role = 'regional-reference'",
+                        (species_id,),
+                    )
+                    continue
+                connection.execute(
+                    "DELETE FROM knowledge_chunks WHERE species_id = ?",
+                    (species_id,),
+                )
+                connection.execute(
+                    "DELETE FROM ecology_notes WHERE species_id = ?",
+                    (species_id,),
+                )
+                connection.execute(
+                    "DELETE FROM conservation_assessments WHERE species_id = ?",
+                    (species_id,),
+                )
+                connection.execute(
+                    "DELETE FROM species_aliases WHERE species_id = ?",
+                    (species_id,),
+                )
+                connection.execute(
+                    "DELETE FROM species_categories WHERE species_id = ?",
+                    (species_id,),
+                )
+                connection.execute(
+                    "DELETE FROM species_sources WHERE species_id = ? "
+                    "AND role IN ('regional-reference', 'image-reference')",
+                    (species_id,),
+                )
+            for source_id in old_source_ids:
+                # Keep a source if another model/reference edge still uses it;
+                # this also avoids breaking historical rows that share a
+                # source with the immutable model catalog.
+                connection.execute(
+                    "DELETE FROM sources WHERE source_id = ? "
+                    "AND NOT EXISTS (SELECT 1 FROM species_sources WHERE source_id = ?)",
+                    (source_id, source_id),
+                )
+
+        connection.executemany(
+            """
+            INSERT INTO sources(
+                source_id, title, publisher, url, license, license_url,
+                retrieved_at, checksum, source_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_id) DO UPDATE SET
+                title=excluded.title, publisher=excluded.publisher, url=excluded.url,
+                license=excluded.license, license_url=excluded.license_url,
+                retrieved_at=excluded.retrieved_at, checksum=excluded.checksum,
+                source_type=excluded.source_type
+            """,
+            [
+                (
+                    source.source_id, source.title, source.publisher, source.url,
+                    source.license, source.license_url, source.retrieved_at,
+                    source.checksum, source.source_type,
+                )
+                for source in reference.sources
+            ],
+        )
+
+        model_ids = set(self.catalog.species_by_id())
+        self._reference_species = {}
+        for species in reference.species:
+            if species.species_id in model_ids:
+                # The immutable model record remains authoritative when the
+                # regional checklist repeats one of the seven model species.
+                continue
+            self._reference_species[species.species_id] = species
+            row = connection.execute(
+                "SELECT * FROM species WHERE species_id = ?", (species.species_id,)
+            ).fetchone()
+            values = (
+                species.species_id, species.scientific_name, species.common_name,
+                species.family, species.region, species.category, species.native_status,
+                int(species.is_native), species.conservation_status, species.ecology,
+                species.short_notes, json.dumps(list(species.image_views)), now, now,
+            )
+            if row is not None:
+                expected = {
+                    "scientific_name": species.scientific_name,
+                    "common_name": species.common_name,
+                    "family": species.family,
+                    "region": species.region,
+                    "category": species.category,
+                    "native_status": species.native_status,
+                    "is_native": str(int(species.is_native)),
+                    "conservation_status": species.conservation_status,
+                    "ecology": species.ecology,
+                    "short_notes": species.short_notes,
+                    "image_views": json.dumps(list(species.image_views)),
+                }
+                if any(str(row[key]) != value for key, value in expected.items()):
+                    if regional_version_changed:
+                        connection.execute(
+                            """
+                            UPDATE species SET scientific_name=?, common_name=?, family=?,
+                                region=?, category=?, native_status=?, is_native=?,
+                                conservation_status=?, ecology=?, short_notes=?,
+                                image_views=?, updated_at=?
+                            WHERE species_id=?
+                            """,
+                            (
+                                species.scientific_name, species.common_name, species.family,
+                                species.region, species.category, species.native_status,
+                                int(species.is_native), species.conservation_status,
+                                species.ecology, species.short_notes,
+                                json.dumps(list(species.image_views)), now, species.species_id,
+                            ),
+                        )
+                    else:
+                        raise CatalogIntegrityError(
+                            f"reference species metadata changed for {species.species_id}"
+                        )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO species(
+                        species_id, scientific_name, common_name, family, region,
+                        category, native_status, is_native, conservation_status,
+                        ecology, short_notes, image_views, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    values,
+                )
+            connection.executemany(
+                """
+                INSERT OR IGNORE INTO species_aliases(
+                    species_id, alias, normalized_alias, kind
+                ) VALUES (?, ?, ?, ?)
+                """,
+                [
+                    (species.species_id, name, normalize_name(name), "common")
+                    for name in (species.common_name, species.scientific_name, *species.aliases)
+                ],
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO species_categories(species_id, category, region, is_native)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    species.species_id, species.category, species.region,
+                    int(species.is_native),
+                ),
+            )
+            for source_id in species.source_ids:
+                connection.execute(
+                    "INSERT OR IGNORE INTO species_sources(species_id, source_id, role) VALUES (?, ?, ?)",
+                    (species.species_id, source_id, "regional-reference"),
+                )
+            for source_id in species.image_source_ids:
+                connection.execute(
+                    "INSERT OR IGNORE INTO species_sources(species_id, source_id, role) VALUES (?, ?, ?)",
+                    (species.species_id, source_id, "image-reference"),
+                )
+            source_chunk_indexes: dict[str, int] = {}
+            for note in species.knowledge:
+                chunk_index = source_chunk_indexes.get(note.source_id, 0)
+                source_chunk_indexes[note.source_id] = chunk_index + 1
+                checksum = hashlib.sha256(note.text.encode("utf-8")).hexdigest()
+                chunk_id = f"{species.species_id}:{note.source_id}:{checksum[:16]}"
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO knowledge_chunks(
+                        chunk_id, species_id, source_id, chunk_index, content,
+                        embedding_ref, checksum
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        chunk_id, species.species_id, note.source_id, chunk_index,
+                        note.text, f"hash:{checksum[:16]}", checksum,
+                    ),
+                )
+                if note.kind.lower() in {"ecology", "habitat"}:
+                    connection.execute(
+                        """
+                        INSERT OR IGNORE INTO ecology_notes(species_id, note, source_id)
+                        VALUES (?, ?, ?)
+                        """,
+                        (species.species_id, note.text, note.source_id),
+                    )
+
+        connection.execute(
+            "INSERT OR REPLACE INTO catalog_metadata(key, value) VALUES (?, ?)",
+            ("regional_catalog_id", reference.catalog_id),
+        )
+        connection.execute(
+            "INSERT OR REPLACE INTO catalog_metadata(key, value) VALUES (?, ?)",
+            ("regional_catalog_version", reference.version),
+        )
+        connection.execute(
+            "INSERT OR REPLACE INTO catalog_metadata(key, value) VALUES (?, ?)",
+            ("regional_catalog_region", reference.region),
+        )
+        connection.execute(
+            "INSERT OR REPLACE INTO catalog_metadata(key, value) VALUES (?, ?)",
+            ("regional_catalog_digest", reference.digest),
+        )
+
     def _rebuild_embedding_index(self, connection, now: str) -> None:
         """Rebuild the compact index from the authoritative chunk rows."""
 
@@ -352,10 +632,13 @@ class KnowledgeStore:
         )
 
     def get_species(self, species_id: str) -> SpeciesRecord | None:
-        return self.catalog.species_by_id().get(species_id)
+        return {
+            **self.catalog.species_by_id(),
+            **self._reference_species,
+        }.get(species_id)
 
     def list_species(self, *, query: str | None = None, category: str | None = None) -> list[SpeciesRecord]:
-        values = list(self.catalog.species)
+        values = list(self.catalog.species) + list(self._reference_species.values())
         if query:
             term = normalize_name(query)
             values = [
@@ -559,6 +842,19 @@ class KnowledgeStore:
             "sources": sources,
             "chunks": chunks,
         }
+        regional_meta = {
+            str(row["key"]): str(row["value"])
+            for row in connection.execute(
+                "SELECT key, value FROM catalog_metadata WHERE key LIKE 'regional_catalog_%'"
+            ).fetchall()
+        }
+        if regional_meta:
+            value["reference_catalog"] = {
+                "catalog_id": regional_meta.get("regional_catalog_id"),
+                "version": regional_meta.get("regional_catalog_version"),
+                "region": regional_meta.get("regional_catalog_region"),
+                "digest": regional_meta.get("regional_catalog_digest"),
+            }
         canonical = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
         value["manifest_digest"] = hashlib.sha256(canonical).hexdigest()
         return value
@@ -599,7 +895,7 @@ class KnowledgeStore:
 
     def _resolve_species(self, query: str) -> SpeciesRecord | None:
         normalized = normalize_name(query)
-        for species in self.catalog.species:
+        for species in (*self.catalog.species, *self._reference_species.values()):
             names = (species.common_name, species.scientific_name, *species.aliases)
             if any(normalize_name(name) in normalized or normalized in normalize_name(name) for name in names):
                 return species

@@ -17,6 +17,24 @@ machine-local file at:
 /opt/botanika/models/embeddings/mobilenetv2-10-embedding.onnx
 ```
 
+For the reviewed campus upload in this repository, run the preparation step
+before enrollment:
+
+```bash
+cd /opt/botanika
+.venv/bin/python tools/prepare_campus_enrollment.py \
+  --archive "Campus Flora.zip" \
+  --manifest data/campus/enrollment-manifest.json \
+  --output data/campus/enrollment \
+  --replace
+```
+
+The manifest records the archive checksum and a SHA-256 for every image. The
+preparer checks ZIP CRCs, rejects unsafe member paths, requires every image to
+be declared exactly once as accepted or excluded, verifies those per-file
+hashes, and writes only accepted files below the ignored `train/` tree. Raw
+operator photos and the archive are intentionally not source-controlled.
+
 ## Dataset convention
 
 For the first pass, five or more photos per campus label are useful.  Use a
@@ -53,11 +71,18 @@ cannot infer whether two photographs show the same physical plant.  Keep the
 held-out plant/session separate yourself.  Record image licenses/consent in
 your own manifest; the tool records source hashes and never invents rights.
 
-If a folder name exactly matches one of the seven immutable catalog names or
-aliases, the artifact records a catalog join and the normal sourced facts may
-be shown.  Any other campus label is stored as `campus:<slug>` and is shown as
-“Uncatalogued campus label”; it receives no fabricated scientific name,
-family, conservation status, ecology, or knowledge-base facts.
+If a folder name exactly matches a reviewed name or alias in the immutable
+model catalog or the larger Vellore regional reference catalog, the artifact
+records a catalog join and the normal sourced facts may be shown. The runtime
+also records the catalog version and digest used for that join and fails closed
+if the reference catalog changes underneath the artifact. Cultivar and
+horticultural-group labels (for example, `Alpinia zerumbet 'Variegata'`,
+`Tradescantia pallida 'Purpurea'`, or `Caladium horticultural group`) are joined
+only to explicitly qualified species/group records; colour alone never creates
+a cultivar or species claim. Any other campus label is stored as
+`campus:<slug>` and is shown as “Uncatalogued campus label”; it receives no
+fabricated scientific name, family, conservation status, ecology, or
+knowledge-base facts.
 
 ## One-command enrollment
 
@@ -122,6 +147,13 @@ campus label.  A campus index is incremental in the practical sense: rerun
 the command with the complete label-folder tree to atomically replace the
 versioned artifact; no model weights are retrained and no old partial index is
 left active.
+
+Enrollment-only runs also report leave-one-out coverage, abstentions, and
+wrong-label counts. Those figures describe consistency among the supplied
+photos, not field accuracy: views of the same physical plant are not
+independent validation. A provisional artifact can offer suggestions while
+the runtime continues to abstain from production saves until independent
+held-out and unknown-image gates pass.
 
 ## Verification and model status
 

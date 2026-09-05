@@ -565,12 +565,17 @@ class Phase6ApiContractTest(unittest.TestCase):
     def test_normal_runtime_uses_real_catalog_services_without_stub_mode(self):
         capabilities = self.client.get("/api/v1/capabilities").json()
         self.assertFalse(capabilities["classifier"]["available"])
-        self.assertEqual(
+        # A checked-in deployment may have the provisional campus artifact
+        # installed; a clean checkout falls back to the compact starter
+        # artifact.  Both are real (non-stub) classifier services and should
+        # report their own release metadata.
+        self.assertIn(
             capabilities["classifier"]["model"]["version"],
-            "india-starter-feature-1.0.0",
+            {"india-starter-feature-1.0.0", "campus-fewshot-1.0.0"},
         )
         self.assertFalse(capabilities["classifier"]["model"]["deployment_ready"])
-        self.assertIn("incomplete", capabilities["classifier"]["detail"].lower())
+        detail = capabilities["classifier"]["detail"].lower()
+        self.assertTrue("incomplete" in detail or "at least" in detail)
         self.assertTrue(capabilities["knowledge"]["available"])
         self.assertFalse(self.app.state.runtime.scan.classifier_stub)
 
@@ -580,7 +585,10 @@ class Phase6ApiContractTest(unittest.TestCase):
 
     def test_species_and_chat_return_exact_non_root_citations(self):
         species = self.client.get("/api/v1/species").json()
-        self.assertEqual(species["total"], 7)
+        # The seven model classes remain the production classifier catalog,
+        # while the read-only Vellore reference catalog broadens the library
+        # and knowledge API for campus discoveries.
+        self.assertGreaterEqual(species["total"], 48)
         urls = [
             source["url"]
             for item in species["species"]

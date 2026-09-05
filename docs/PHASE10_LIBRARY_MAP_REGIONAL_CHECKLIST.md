@@ -3,14 +3,16 @@
 This workstream keeps the Pi classifier catalog and the regional reference
 checklist separate. The classifier remains model-gated; the checklist is a
 larger, read-only set used to show found/not-found coverage. It is a curated
-starter list of 23 plants for the wider Vellore region, not an exhaustive flora
-claim.
+starter list of 48 plants and horticultural groups for the wider Vellore
+region, not an exhaustive flora claim.
 
 ## Evidence and provenance
 
 The checklist is in
 [`config/catalog/vellore-regional-flora.json`](../config/catalog/vellore-regional-flora.json).
-Each species has a stable ID, scientific/common names, family, native-status
+The current revision (`2026.09.05.1`) contains 48 source-backed entries,
+including the 22 campus photo classes that have a defensible botanical join.
+Each entry has a stable ID, scientific/common names, family, native-status
 wording, ecology, conservation note, aliases, sourced fact, and a source URL
 with license metadata. The primary taxonomic/distribution references are the
 Royal Botanic Gardens, Kew Plants of the World Online pages (POWO), for

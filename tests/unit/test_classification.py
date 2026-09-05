@@ -105,6 +105,27 @@ class ClassificationTests(unittest.TestCase):
         self.assertLess(result.confidence, 0.75)
         self.assertEqual(result.display_label, "DEMO DATA: Not confident")
 
+    def test_validation_pending_label_is_distinct_from_low_confidence(self):
+        result = ClassificationResult(
+            status=ClassificationStatus.UNCERTAIN,
+            confidence=0.94,
+            short_notes="The provisional index matched this view.",
+            classifier_version="test-1",
+            validation_pending=True,
+        )
+
+        self.assertEqual(result.display_label, "Validation pending")
+        self.assertTrue(result.to_dict()["validation_pending"])
+        self.assertEqual(
+            ClassificationResult(
+                status=ClassificationStatus.UNCERTAIN,
+                confidence=0.40,
+                short_notes="The view is ambiguous.",
+                classifier_version="test-1",
+            ).display_label,
+            "Not confident",
+        )
+
     def test_low_confidence_path_preserves_the_configured_confidence(self):
         result = DummyClassifier(
             confidence=0.74,

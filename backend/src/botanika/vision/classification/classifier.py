@@ -117,6 +117,9 @@ class ClassificationResult:
     suggestions: tuple[SpeciesSuggestion, ...] = ()
     error: str | None = None
     catalogued: bool = True
+    # True means the model's confidence gate passed, but the release/evidence
+    # gate withheld the identity. This is distinct from an ambiguous view.
+    validation_pending: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, ClassificationStatus):
@@ -132,6 +135,10 @@ class ClassificationResult:
             raise ValueError("demo_label must be a string")
         if not isinstance(self.catalogued, bool):
             raise ValueError("catalogued flag must be a boolean")
+        if not isinstance(self.validation_pending, bool):
+            raise ValueError("validation_pending must be a boolean")
+        if self.validation_pending and self.status is not ClassificationStatus.UNCERTAIN:
+            raise ValueError("validation_pending applies only to uncertain results")
         if self.is_stub and self.demo_label != DEMO_DATA_LABEL:
             raise ValueError("stub responses must be labelled DEMO DATA")
         if not self.is_stub and self.demo_label:
@@ -225,7 +232,8 @@ class ClassificationResult:
         if self.status is ClassificationStatus.ACCEPTED:
             return f"{prefix}{self.common_name}"
         if self.status is ClassificationStatus.UNCERTAIN:
-            return f"{prefix}Not confident"
+            label = "Validation pending" if self.validation_pending else "Not confident"
+            return f"{prefix}{label}"
         if self.status is ClassificationStatus.MALFORMED_IMAGE:
             return f"{prefix}Malformed image"
         if self.status is ClassificationStatus.CANCELLED:
@@ -257,6 +265,7 @@ class ClassificationResult:
             "suggestions": [suggestion.to_dict() for suggestion in self.suggestions],
             "error": self.error,
             "catalogued": self.catalogued,
+            "validation_pending": self.validation_pending,
         }
 
 

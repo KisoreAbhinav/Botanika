@@ -36,6 +36,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=settings.campus_classifier_model_path, help="checksummed JSON artifact")
     parser.add_argument("--embedding-model", type=Path, default=settings.embedding_model_path)
     parser.add_argument("--catalog", type=Path, default=settings.species_catalog_path)
+    parser.add_argument(
+        "--regional-catalog",
+        type=Path,
+        default=settings.regional_catalog_path,
+        help="sourced reference catalog used for explicit campus joins",
+    )
     parser.add_argument("--catalog-map", type=Path, default=None, help="optional JSON mapping of folder name to immutable species_id")
     parser.add_argument("--min-images-per-label", type=int, default=3)
     parser.add_argument(
@@ -72,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
             args.output,
             embedding_model_path=args.embedding_model,
             catalog_path=args.catalog,
+            regional_catalog_path=args.regional_catalog,
             held_out_dir=held_out,
             unknown_dir=unknown,
             catalog_map=catalog_map,
@@ -104,4 +111,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

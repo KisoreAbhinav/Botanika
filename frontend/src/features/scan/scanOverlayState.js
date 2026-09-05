@@ -13,9 +13,13 @@ export function recognitionOverlayLabels(result) {
 }
 
 export function overlayAriaLabel(snapshot) {
-  const labels = recognitionOverlayLabels(snapshot?.classification?.result);
+  const result = snapshot?.classification?.result;
+  const labels = recognitionOverlayLabels(result);
   if (labels) {
     return `Detection overlay. ${labels.top}. ${labels.bottom}. Tap a box to select it.`;
+  }
+  if (result?.status === "uncertain" && result.validation_pending === true) {
+    return "Detection overlay. Validation pending; the visible classifier suggestion is provisional. Tap a box to select it.";
   }
   const count = Array.isArray(snapshot?.detections) ? snapshot.detections.length : 0;
   return `Detection overlay with ${count} live box${count === 1 ? "" : "es"}. Tap a box to select it.`;

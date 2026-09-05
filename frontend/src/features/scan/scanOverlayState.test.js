@@ -26,3 +26,13 @@ test("live and uncertain overlays retain detection-state wording", () => {
     /Name- Neem\. Confidence- 81%/,
   );
 });
+
+test("provisional overlay announces validation status without claiming recognition", () => {
+  assert.match(
+    overlayAriaLabel({
+      detections: [{ label: "plant" }],
+      classification: { result: { status: "uncertain", validation_pending: true } },
+    }),
+    /Validation pending.*provisional/i,
+  );
+});
