@@ -197,17 +197,10 @@ Pi, AP, camera, or phone acceptance journey.
 
 ## Phase 9 extras and final hardening
 
-Rebuild the offline knowledge index and verify its source/license boundary:
+Rebuild the offline catalog index and verify its source/license boundary:
 
 ```sh
 .venv/bin/python tools/ingest_knowledge.py --manifest-output docs/evidence/phase9/knowledge-manifest.json
-```
-
-Benchmark a manually installed quantized GGUF through the selected llama.cpp
-backend. No network access or model download is attempted:
-
-```sh
-.venv/bin/python tools/benchmark_local_llm.py --model models/llm/botanika.gguf --output docs/evidence/phase9/llm-benchmark.json
 ```
 
 Run the hardware-independent Phase 9 contract check:

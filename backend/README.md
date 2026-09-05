@@ -153,15 +153,12 @@ blocks that save.
 
 ## Phase 9 extras
 
-The knowledge boundary now rebuilds SQLite FTS5 plus a deterministic 256
-dimension compact embedding index from the reviewed catalog. Every hit retains
-its source/license citation and grounded answers abstain when exact evidence is
-missing. `tools/ingest_knowledge.py` validates the tracked source/license
-manifest and emits a stable chunk manifest without network access.
+The knowledge boundary rebuilds a local catalog search index from reviewed
+records. Every hit retains its source/license citation and answers abstain when
+exact evidence is missing. `tools/ingest_knowledge.py` validates the tracked
+source/license manifest and emits a stable chunk manifest without network
+access.
 
-`LocalLLM` is a lazy, optional llama.cpp adapter for a manually installed
-quantized GGUF. It accepts generated wording only when the output cites the
-retrieved chunk IDs; otherwise the extractive answer remains authoritative.
 `AudioCoordinator` owns bounded Vosk/Piper turns, endpointing, cached models,
 speaker interruption, and typed-chat fallback. Missing Pi audio devices or
 voice assets are reported as unavailable.

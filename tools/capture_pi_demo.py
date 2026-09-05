@@ -134,19 +134,91 @@ def scan_snapshot(phase: str) -> dict[str, object]:
             "duration_ms": 842.0,
             "result": accepted,
         }
+    elif phase == "uncertain":
+        classification = {
+            "request_id": "pi-demo-plant-scan-uncertain",
+            "crop_hash": "pi-demo-local-image-sha256",
+            "duration_ms": 734.0,
+            "result": {
+                **accepted,
+                "status": "uncertain",
+                "species_id": None,
+                "common_name": None,
+                "scientific_name": None,
+                "family": None,
+                "category": None,
+                "conservation_status": None,
+                "confidence": 0.61,
+                "short_notes": "The view does not contain enough distinguishing detail for a reliable match.",
+                "suggestions": [
+                    {
+                        "common_name": "Spanish cherry",
+                        "scientific_name": "Mimusops elengi",
+                        "confidence": 0.61,
+                    }
+                ],
+            },
+        }
+    elif phase == "validation":
+        classification = {
+            "request_id": "pi-demo-plant-scan-validation",
+            "crop_hash": "pi-demo-local-image-sha256",
+            "duration_ms": 768.0,
+            "result": {
+                **accepted,
+                "status": "uncertain",
+                "validation_pending": True,
+                "confidence": 0.78,
+                "short_notes": "The campus-photo match is provisional until independent field validation is complete.",
+                "suggestions": [
+                    {
+                        "common_name": "Spanish cherry",
+                        "scientific_name": "Mimusops elengi",
+                        "confidence": 0.78,
+                    }
+                ],
+            },
+        }
+    elif phase == "error":
+        classification = {
+            "request_id": "pi-demo-plant-scan-error",
+            "crop_hash": "pi-demo-local-image-sha256",
+            "duration_ms": 205.0,
+            "result": {
+                **accepted,
+                "status": "error",
+                "species_id": None,
+                "common_name": None,
+                "scientific_name": None,
+                "family": None,
+                "category": None,
+                "conservation_status": None,
+                "confidence": None,
+                "error": "Classifier unavailable",
+            },
+        }
     if phase == "fallback":
         state = "Image loaded"
         hint = "Saved image loaded · ready to capture from the local frame."
-    elif phase == "accepted":
+    elif phase in {"accepted", "uncertain", "validation", "error"}:
         state = "Identified"
         hint = "Accepted crop received from the saved image."
+    elif phase == "locked":
+        state = "Locked"
+        hint = "Target locked · hold steady."
+    elif phase == "processing":
+        state = "Captured"
+        hint = "Processing plant…"
+    elif phase == "cancelled":
+        state = "Ready for a plant"
+        hint = "Scan cancelled. Ready for another plant."
     else:
         state = "Ready for a plant"
         hint = "Hold a plant steady or load a saved image."
     return {
         "mode": "fallback" if phase == "fallback" else "camera",
-        "camera_available": True,
-        "processing": False,
+        "camera_available": phase != "unavailable",
+        "processing": phase == "processing",
         "state": state,
         "hint": hint,
         "frame": {
@@ -156,13 +228,13 @@ def scan_snapshot(phase: str) -> dict[str, object]:
             "offset_x": 30,
             "offset_y": 0,
         },
-        "detections": [
+        "detections": [] if phase == "unavailable" else [
             {"label": "plant", "confidence": 0.97, "box": {"x1": 210, "y1": 150, "x2": 1810, "y2": 1450}}
         ],
-        "selected_index": 0,
-        "stable_checks": 4,
+        "selected_index": None if phase == "unavailable" else 0,
+        "stable_checks": 4 if phase in {"locked", "processing", "accepted", "uncertain", "validation", "error"} else 1,
         "required_checks": 4,
-        "quality": {
+        "quality": None if phase == "unavailable" else {
             "ready": True,
             "target_width": 1600,
             "target_height": 1300,
@@ -487,6 +559,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--video", type=Path, default=DEFAULT_VIDEO)
     parser.add_argument("--chromium", default=shutil.which("chromium") or "/usr/bin/chromium")
+    parser.add_argument(
+        "--single-scan-phase",
+        choices=("locked", "processing", "uncertain", "validation", "error", "cancelled", "unavailable"),
+        help="Capture only one audited scan state instead of the full walkthrough.",
+    )
     return parser
 
 
@@ -524,6 +601,27 @@ def main() -> int:
             "**/media/**",
             lambda route: route.fulfill(status=200, content_type="image/jpeg", body=plant_data),
         )
+
+        if args.single_scan_phase:
+            filenames = {
+                "locked": "17-pi-scan-target-locked.png",
+                "processing": "18-pi-scan-processing.png",
+                "uncertain": "19-pi-scan-not-confident.png",
+                "validation": "20-pi-scan-validation-pending.png",
+                "error": "21-pi-scan-identification-error.png",
+                "cancelled": "22-pi-scan-cancelled.png",
+                "unavailable": "23-pi-scan-camera-unavailable.png",
+            }
+            fixture.phase = args.single_scan_phase
+            page.goto(base_url, wait_until="domcontentloaded")
+            page.wait_for_selector(".home", timeout=5000)
+            open_screen(page, "Scan for Plants", ".scan")
+            settle(page, 700)
+            capture(page, args.output, filenames[args.single_scan_phase])
+            context.close()
+            browser.close()
+            print(json.dumps({"screenshots": str(args.output), "phase": args.single_scan_phase}, indent=2))
+            return 0
 
         page.goto(base_url, wait_until="domcontentloaded")
         page.wait_for_selector(".home", timeout=5000)
@@ -606,6 +704,44 @@ def main() -> int:
         page.wait_for_selector('[aria-label="Diagnostics"]', timeout=5000)
         settle(page, 900)
         capture(page, args.output, "13-pi-capability-diagnostics.png")
+
+        page.get_by_role("button", name="Close", exact=True).click()
+        page.get_by_role("button", name="Home", exact=True).click()
+        page.wait_for_selector(".home", timeout=5000)
+        page.keyboard.press("F1")
+        page.wait_for_selector(".shortcuts-pop", timeout=5000)
+        settle(page, 500)
+        capture(page, args.output, "14-pi-keyboard-shortcuts.png")
+
+        page.keyboard.press("Escape")
+        page.get_by_role("button", name=re.compile("Ask Botanika")).click()
+        page.wait_for_selector(".chat-empty", timeout=5000)
+        settle(page, 500)
+        capture(page, args.output, "15-pi-ask-empty.png")
+
+        fixture.saved = False
+        page.get_by_role("button", name="Home", exact=True).click()
+        page.wait_for_selector(".home", timeout=5000)
+        open_screen(page, "Library", ".library")
+        settle(page, 600)
+        capture(page, args.output, "16-pi-library-empty.png")
+        fixture.saved = True
+
+        for phase, filename in (
+            ("locked", "17-pi-scan-target-locked.png"),
+            ("processing", "18-pi-scan-processing.png"),
+            ("uncertain", "19-pi-scan-not-confident.png"),
+            ("validation", "20-pi-scan-validation-pending.png"),
+            ("error", "21-pi-scan-identification-error.png"),
+            ("cancelled", "22-pi-scan-cancelled.png"),
+            ("unavailable", "23-pi-scan-camera-unavailable.png"),
+        ):
+            fixture.phase = phase
+            page.goto(base_url, wait_until="domcontentloaded")
+            page.wait_for_selector(".home", timeout=5000)
+            open_screen(page, "Scan for Plants", ".scan")
+            settle(page, 700)
+            capture(page, args.output, filename)
 
         context.close()
         browser.close()

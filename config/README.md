@@ -22,11 +22,10 @@ The same environment example contains optional Phase 8 GPIO assignments and
 pairing lease settings. Leave the pin values blank when running without
 physical hardware; the software mode toggle remains available.
 
-Phase 9 adds optional local asset paths for a manually installed GGUF/llama.cpp
-model and explicit `BOTANIKA_LLAMA_CLI_PATH`, Vosk STT models, Piper voices, and
-the independent weed-beta manifest. The Pi release and checksum contracts are
-tracked in `llm/phase9-llama.example.json`, `weed/phase9-beta.json`, and the
-model review in `../docs/MODEL_ASSET_REVIEW_2026-09-04.md`.
+Phase 9 adds optional local asset paths for Vosk speech recognition, Piper
+voices, and the independent weed-beta manifest. The Pi release and checksum
+contracts are tracked in `weed/phase9-beta.json` and the model review in
+`../docs/MODEL_ASSET_REVIEW_2026-09-04.md`.
 No asset is downloaded by the application. Source/license provenance lives in
 [`knowledge/source-license-manifest.json`](knowledge/source-license-manifest.json);
-the release tools rebuild and checksum the SQLite FTS5/embedding index.
+the release tools rebuild and checksum the local catalog search index.

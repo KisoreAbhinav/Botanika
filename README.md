@@ -11,9 +11,9 @@ classifier baseline, provenance-first knowledge retrieval, grouped discovery
 storage, the 800×480 kiosk interface, the Phase 7 private transport boundary,
 and the Phase 8 responsive paired-client/mode handoff. An optional zero-cost
 Cloudflare Quick Tunnel now adds internet reachability for a phone on a
-different network while the Pi remains authoritative. Phase 9 adds the
-provenance-first offline guide/voice boundary, reproducible catalog progress,
-and an independent weed-beta/deployment boundary. The shipped classifier
+different network while the Pi remains authoritative. Phase 9 adds offline
+catalog guidance, voice controls, reproducible catalog progress, and an
+independent weed-beta/deployment boundary. The shipped classifier
 is a compact CPU baseline with explicit unknown rejection; production
 acceptance stays disabled until field-held-out reliability and a Pi benchmark
 satisfy the deployment gate.
@@ -46,7 +46,7 @@ satisfy the deployment gate.
 - Private Pi Wi-Fi handoff with one paired browser controller
 - Optional no-account Cloudflare Quick Tunnel handoff over HTTPS (AP remains a fallback)
 - Responsive phone camera flow with crop-only upload and optional save-time location
-- Offline botanical RAG, speech-to-text, and text-to-speech
+- Offline botanical catalog lookup and voice controls
 - Weed detection as the final beta stage
 
 ## Optional internet pairing (free Quick Tunnel)
