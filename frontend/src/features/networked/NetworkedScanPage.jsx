@@ -6,6 +6,14 @@ import {
   canRequestPosition,
   positionPayload,
 } from "./browserCapabilities.js";
+import {
+  advanceStability,
+  frameSignature,
+  highestConfidenceMatch,
+  NEW_SCENE_DIFFERENCE,
+  REQUIRED_STABLE_SAMPLES,
+  signatureDifference,
+} from "./livePlantScan.js";
 import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
 // Keep browser-owned uploads comfortably below the backend's 12 MiB request
@@ -13,25 +21,42 @@ import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 // classifier does not need the original camera resolution for this crop flow.
 const MAX_CROP_DIMENSION = 2048;
 const CROP_JPEG_QUALITY = 0.84;
+const LIVE_CROP_DIMENSION = 960;
+const LIVE_SCAN_INTERVAL_MS = 900;
 
 /**
- * The paired browser owns this camera element. Only the accepted still crop is
- * handed to the Pi classifier; the stream never becomes a request payload.
+ * The paired browser owns this camera element. Only bounded, stability-gated
+ * JPEG samples and manual crops reach the Pi; the stream is never uploaded.
  */
 export function NetworkedScanPage({ notify, onLeaseLost }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const liveCanvasRef = useRef(null);
   const fileRef = useRef(null);
   const streamRef = useRef(null);
+  const liveRequestRef = useRef(false);
+  const previousSignatureRef = useRef(null);
+  const submittedSignatureRef = useRef(null);
+  const stableChecksRef = useRef(0);
+  const classificationRef = useRef(null);
+  const liveSerialRef = useRef(0);
+  const saveBusyRef = useRef(false);
   const [cameraState, setCameraState] = useState("starting");
   const [pending, setPending] = useState(null);
   const [quality, setQuality] = useState(null);
   const [classification, setClassification] = useState(null);
   const [cropMargin, setCropMargin] = useState(8);
   const [busy, setBusy] = useState(false);
+  const [liveBusy, setLiveBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [liveStableChecks, setLiveStableChecks] = useState(0);
+  const [liveStatus, setLiveStatus] = useState("Starting live scan…");
   const requestSerial = useRef(0);
+
+  useEffect(() => {
+    classificationRef.current = classification;
+  }, [classification]);
 
   const onCameraPlaybackError = () => {
     setError("Camera playback was blocked. Tap Start camera to retry.");
@@ -88,6 +113,108 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     };
   }, [pending?.url]);
 
+  // Sample the browser-owned stream locally, wait for three visually stable
+  // frames, then send one bounded JPEG to the Pi. A materially changed scene
+  // starts a new lock-on; unchanged video is not uploaded repeatedly.
+  useEffect(() => {
+    if (cameraState !== "ready" || pending) return undefined;
+    let cancelled = false;
+
+    const sample = async () => {
+      if (cancelled || liveRequestRef.current || saveBusyRef.current) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
+      const canvas = liveCanvasRef.current || document.createElement("canvas");
+      const dimensions = boundedDimensions(video.videoWidth, video.videoHeight, LIVE_CROP_DIMENSION);
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const measured = measureQuality(imageData);
+      const signature = frameSignature(imageData);
+      const stability = advanceStability(
+        previousSignatureRef.current,
+        signature,
+        stableChecksRef.current,
+      );
+      previousSignatureRef.current = signature;
+      stableChecksRef.current = measured.ready
+        ? Math.min(REQUIRED_STABLE_SAMPLES, stability.stableChecks)
+        : 0;
+      setLiveStableChecks(stableChecksRef.current);
+      setQuality(measured);
+
+      const submittedDifference = signatureDifference(submittedSignatureRef.current, signature);
+      if (
+        submittedDifference > NEW_SCENE_DIFFERENCE
+        && submittedSignatureRef.current
+        && classificationRef.current
+      ) {
+        classificationRef.current = null;
+        setClassification(null);
+      }
+      if (!measured.ready) {
+        setLiveStatus(measured.message.replace("Quality warning: ", ""));
+        return;
+      }
+      if (stableChecksRef.current < REQUIRED_STABLE_SAMPLES) {
+        setLiveStatus(`Hold steady · ${stableChecksRef.current}/${REQUIRED_STABLE_SAMPLES}`);
+        return;
+      }
+      if (submittedDifference <= NEW_SCENE_DIFFERENCE) {
+        setLiveStatus(classificationRef.current ? "Live match current" : "Watching for a new view…");
+        return;
+      }
+
+      liveRequestRef.current = true;
+      const serial = ++liveSerialRef.current;
+      setLiveBusy(true);
+      setError(null);
+      setLiveStatus("Identifying stable frame…");
+      try {
+        const blob = await canvasToBlob(canvas);
+        const hash = await sha256(blob);
+        if (cancelled || serial !== liveSerialRef.current || saveBusyRef.current) return;
+        const response = await classifyControllerCrop({
+          blob,
+          hash,
+          width: canvas.width,
+          height: canvas.height,
+          requestId: `browser-live-${Date.now()}`,
+        });
+        if (cancelled || serial !== liveSerialRef.current) return;
+        validateCropResponse(response, { hash, width: canvas.width, height: canvas.height });
+        submittedSignatureRef.current = signature;
+        classificationRef.current = response.classification;
+        setClassification(response.classification);
+        const match = highestConfidenceMatch(response.classification?.result);
+        setLiveStatus(match ? `Live match · ${match.common_name}` : "No confident plant match yet");
+      } catch (caught) {
+        if (cancelled || serial !== liveSerialRef.current) return;
+        if (caught.status === 401) onLeaseLost?.();
+        setError(caught.message || "The stable live frame could not be identified.");
+        setLiveStatus("Live identification paused after an error");
+      } finally {
+        liveRequestRef.current = false;
+        if (!cancelled && serial === liveSerialRef.current) setLiveBusy(false);
+      }
+    };
+
+    void sample();
+    const timer = window.setInterval(() => { void sample(); }, LIVE_SCAN_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      liveSerialRef.current += 1;
+      previousSignatureRef.current = null;
+      stableChecksRef.current = 0;
+      setLiveBusy(false);
+      window.clearInterval(timer);
+    };
+  }, [cameraState, onLeaseLost, pending]);
+
   const captureVideo = async () => {
     const video = videoRef.current;
     if (!video) {
@@ -142,8 +269,10 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
   };
 
   const prepareCrop = async (sourceCanvas, source, margin = cropMargin) => {
+    liveSerialRef.current += 1;
     setError(null);
     setClassification(null);
+    classificationRef.current = null;
     const canvas = resizeCanvasToMaxDimension(buildManualCrop(sourceCanvas, margin), MAX_CROP_DIMENSION);
     const context = canvas.getContext("2d", { willReadFrequently: true });
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -152,7 +281,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     const blob = await canvasToBlob(canvas);
     const hash = await sha256(blob);
     const url = URL.createObjectURL(blob);
-    setPending({
+    const crop = {
       blob,
       hash,
       width: canvas.width,
@@ -160,7 +289,10 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
       url,
       source,
       margin,
-    });
+      quality: measured,
+    };
+    setPending(crop);
+    if (measured.ready) await classifyCrop(crop, { automatic: true });
   };
 
   const reapplyManualCrop = () => {
@@ -168,9 +300,9 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     prepareCrop(canvasRef.current, pending.source, cropMargin);
   };
 
-  const classify = async () => {
-    if (!pending || busy) return;
-    if (!quality?.ready) {
+  async function classifyCrop(crop, { automatic = false } = {}) {
+    if (!crop || busy) return;
+    if (!(crop.quality?.ready ?? quality?.ready)) {
       setError("Improve the local crop quality before sending it to the Pi.");
       return;
     }
@@ -179,27 +311,20 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     setError(null);
     try {
       const response = await classifyControllerCrop({
-        blob: pending.blob,
-        hash: pending.hash,
-        width: pending.width,
-        height: pending.height,
+        blob: crop.blob,
+        hash: crop.hash,
+        width: crop.width,
+        height: crop.height,
         requestId: `browser-${Date.now()}`,
       });
       if (serial !== requestSerial.current) return;
-      if (pending.hash && response.crop?.sha256 !== pending.hash) {
-        throw new Error("The crop hash changed during upload; retry this crop.");
-      }
-      if (
-        response.crop?.width !== pending.width
-        || response.crop?.height !== pending.height
-      ) {
-        throw new Error("The crop dimensions changed during upload; retry this crop.");
-      }
+      validateCropResponse(response, crop);
+      classificationRef.current = response.classification;
       setClassification(response.classification);
       const result = response.classification?.result;
       notify(
         result?.status === "accepted"
-          ? "Plant identified by the Pi."
+          ? automatic ? "Stable picture identified by the Pi." : "Plant identified by the Pi."
           : result?.validation_pending
             ? "A provisional plant suggestion is ready; validation is pending."
             : "The Pi could not accept this view.",
@@ -211,11 +336,21 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     } finally {
       setBusy(false);
     }
-  };
+  }
+
+  const classify = async () => classifyCrop(pending);
 
   const save = async () => {
     const result = classification?.result;
-    if (!result || result.status !== "accepted" || saveBusy) return;
+    if (
+      !result
+      || result.status !== "accepted"
+      || saveBusyRef.current
+      || liveRequestRef.current
+    ) return;
+    // Freeze live submissions while geolocation and the lease-bound save use
+    // this exact request ID/crop hash, otherwise a new view could make it stale.
+    saveBusyRef.current = true;
     setSaveBusy(true);
     setError(null);
     const position = await requestPosition((message) => notify(message, "info"));
@@ -230,19 +365,28 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
       if (caught.status === 401) onLeaseLost?.();
       setError(caught.message);
     } finally {
+      saveBusyRef.current = false;
       setSaveBusy(false);
     }
   };
 
   const clear = () => {
     requestSerial.current += 1;
+    liveSerialRef.current += 1;
+    previousSignatureRef.current = null;
+    submittedSignatureRef.current = null;
+    stableChecksRef.current = 0;
+    classificationRef.current = null;
     setPending(null);
     setQuality(null);
+    setLiveStableChecks(0);
+    setLiveStatus("Starting live scan…");
     setClassification(null);
     setError(null);
   };
 
   const result = classification?.result;
+  const liveMatch = highestConfidenceMatch(result);
   return (
     <div className="networked-scan-page">
       <section className="networked-camera-card" aria-label="Phone camera">
@@ -251,7 +395,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
             <div className="eyebrow">Paired camera</div>
             <h1>Scan a plant</h1>
           </div>
-          <span className="networked-live-badge">Pi classifier</span>
+          <span className="networked-live-badge">Live · Pi classifier</span>
         </div>
         {!pending ? (
           <div className="phone-camera-view">
@@ -272,9 +416,21 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
                 <p>Open the device camera below. The captured still remains local until you approve its crop.</p>
               </div>
             )}
+            {cameraState === "ready" && liveMatch && (
+              <div className={`local-result-box ${liveMatch.accepted ? "accepted" : "provisional"}`}>
+                <span>{liveMatch.common_name} · {formatConfidence(liveMatch.confidence)}</span>
+              </div>
+            )}
+            {cameraState === "ready" && !liveBusy && (
+              <div className="networked-stability-strip" aria-label={`Frame stability ${liveStableChecks} of ${REQUIRED_STABLE_SAMPLES}`}>
+                {Array.from({ length: REQUIRED_STABLE_SAMPLES }).map((_, index) => (
+                  <span key={index} className={index < liveStableChecks ? "filled" : ""} />
+                ))}
+              </div>
+            )}
             <div className="detector-fallback-label">
               {cameraState === "ready"
-                ? "Live phone camera · capture a still for Pi classification"
+                ? liveStatus
                 : cameraState === "playback-blocked"
                   ? "Camera ready · playback needs a tap"
                 : cameraState === "capture-input"
@@ -320,6 +476,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
           </div>
         )}
         <canvas ref={canvasRef} className="visually-hidden" aria-hidden="true" />
+        <canvas ref={liveCanvasRef} className="visually-hidden" aria-hidden="true" />
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="visually-hidden" onChange={chooseFile} aria-label="Open the phone camera or choose a local plant image" />
         <div className="networked-camera-actions">
           {!pending && cameraState === "ready" && (
@@ -327,10 +484,11 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
               type="button"
               className="btn green mobile-primary"
               onClick={captureVideo}
+              disabled={liveBusy}
               data-hotkey={CONTROL_SHORTCUTS.phoneCapture}
               aria-keyshortcuts={CONTROL_SHORTCUTS.phoneCapture}
             >
-              Capture crop <kbd aria-hidden="true">Space</kbd>
+              Take manual picture <kbd aria-hidden="true">Space</kbd>
             </button>
           )}
           {!pending && cameraState === "playback-blocked" && (
@@ -375,12 +533,12 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
           )}
         </div>
         {quality && <p className={`local-quality ${quality.ready ? "ready" : "warning"}`}>{quality.message}</p>}
-        <p className="networked-privacy-note">Only the accepted {pending ? "crop" : "still crop"} is uploaded. Continuous phone video never reaches the Pi.</p>
+        <p className="networked-privacy-note">Live video stays on this phone. Botanika uploads only a bounded JPEG after three stable local checks, or the manual picture you choose.</p>
       </section>
 
       <section className="networked-result-card" aria-live="polite">
         <div className="eyebrow">Identification</div>
-        {!result && <><h2>Ready when you are</h2><p>Hold the plant in view, capture a clear crop, and send it to Botanika for local classification.</p></>}
+        {!result && <><h2>{busy || liveBusy ? "Checking this plant…" : "Live scan ready"}</h2><p>Hold a plant steady. Botanika automatically shows the highest-confidence match here, or you can take a manual picture.</p></>}
         {result?.status === "accepted" && (
           <>
             <h2>{result.common_name}</h2>
@@ -395,7 +553,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
               type="button"
               className="btn green mobile-primary"
               onClick={save}
-              disabled={saveBusy}
+              disabled={saveBusy || liveBusy}
               data-hotkey={CONTROL_SHORTCUTS.saveToLibrary}
               aria-keyshortcuts={CONTROL_SHORTCUTS.saveToLibrary}
             >
@@ -405,7 +563,8 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
         )}
         {result?.status === "uncertain" && (
           <>
-            <h2>{result.validation_pending ? "Validation pending" : "Not confident"}</h2>
+            <h2>{liveMatch ? liveMatch.common_name : result.validation_pending ? "Validation pending" : "Not confident"}</h2>
+            {liveMatch && <div className="networked-confidence">Highest current score · {formatConfidence(liveMatch.confidence)} · not confirmed</div>}
             <p>
               {result.validation_pending
                 ? "This is a provisional suggestion. Independent field validation is incomplete, so it cannot be saved yet."
@@ -458,21 +617,35 @@ function waitForVideoFrame(video, stream, timeoutMs = 2000) {
   });
 }
 
+function validateCropResponse(response, crop) {
+  if (crop.hash && response.crop?.sha256 !== crop.hash) {
+    throw new Error("The crop hash changed during upload; retry this crop.");
+  }
+  if (response.crop?.width !== crop.width || response.crop?.height !== crop.height) {
+    throw new Error("The crop dimensions changed during upload; retry this crop.");
+  }
+}
+
 function measureQuality(imageData) {
-  const values = [];
+  let total = 0;
+  let totalSquared = 0;
+  let pixels = 0;
   let clipped = 0;
   for (let index = 0; index < imageData.data.length; index += 4) {
     const red = imageData.data[index];
     const green = imageData.data[index + 1];
     const blue = imageData.data[index + 2];
-    values.push(0.2126 * red + 0.7152 * green + 0.0722 * blue);
+    const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    total += luminance;
+    totalSquared += luminance * luminance;
+    pixels += 1;
     if (Math.max(red, green, blue) >= 250 || Math.min(red, green, blue) <= 5) clipped += 1;
   }
-  const mean = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
-  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(values.length, 1);
+  const mean = total / Math.max(pixels, 1);
+  const variance = totalSquared / Math.max(pixels, 1) - mean ** 2;
   if (mean < 25) return { ready: false, message: "Quality warning: crop is too dark." };
   if (mean > 235) return { ready: false, message: "Quality warning: crop is too bright." };
-  if (clipped / Math.max(values.length, 1) > 0.35) return { ready: false, message: "Quality warning: crop is too clipped." };
+  if (clipped / Math.max(pixels, 1) > 0.35) return { ready: false, message: "Quality warning: crop is too clipped." };
   if (variance < 120) return { ready: false, message: "Quality warning: hold steady and improve focus." };
   return { ready: true, message: "Local quality checks passed; the crop is ready for the Pi." };
 }

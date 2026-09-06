@@ -71,6 +71,16 @@ def phone_fixture(*, coincident: bool = False) -> dict[str, object]:
     return fixture
 
 
+def empty_phone_fixture() -> dict[str, object]:
+    """Return the production-shaped library payload before the first save."""
+    fixture = phone_fixture()
+    fixture["map"]["locations"] = []
+    fixture["map"]["total"] = 0
+    fixture["map"]["has_locations"] = False
+    fixture["map"]["message"] = "No saved observations include an accurate location yet."
+    return fixture
+
+
 def api_fixture_handler(route: Route, fixture: dict[str, object]) -> None:
     path = urlparse(route.request.url).path
     if path.endswith("/library/records"):
@@ -274,6 +284,30 @@ def run_width(browser: Browser, base_url: str, output: Path, width: int, *, coin
         context.close()
 
 
+def run_empty_library(browser: Browser, base_url: str, output: Path) -> None:
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    context.add_init_script("localStorage.setItem('botanika.controller.token', 'phase10-browser-token');")
+    page = context.new_page()
+    page.set_default_timeout(7000)
+    fixture = empty_phone_fixture()
+    page.route("**/api/v1/**", lambda route: api_fixture_handler(route, fixture))
+    page.route("**/tile.openstreetmap.org/**", fulfill_mock_tiles)
+    try:
+        page.goto(base_url, wait_until="domcontentloaded")
+        page.locator(".home-card").filter(has_text="Library").click()
+        page.get_by_role("button", name="Observation map", exact=True).click()
+        container = page.get_by_test_id("observation-map")
+        container.wait_for(state="visible")
+        assert container.locator(".leaflet-map-pane").count() == 1, "empty library did not initialize Leaflet"
+        assert page.locator(".leaflet-tile-loaded").count() > 0, "empty library map did not render street tiles"
+        assert page.locator(".leaflet-marker-icon").count() == 0, "empty library map unexpectedly rendered markers"
+        assert "0 mapped observations" in page.locator(".library-map-head").inner_text()
+        assert_no_horizontal_overflow(page)
+        page.screenshot(path=str(output / "phone-map-empty-390.png"), full_page=True)
+    finally:
+        context.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=True)
@@ -287,6 +321,7 @@ def main(argv: list[str] | None = None) -> int:
             run_width(browser, url, args.output, 390)
             run_width(browser, url, args.output, 390, coincident=True)
             run_width(browser, url, args.output, 390, offline=True)
+            run_empty_library(browser, url, args.output)
         browser.close()
     print(json.dumps({"status": "ok", "focused": args.focused, "widths": [360, 390] if not args.focused else [390], "offline_fallback": not args.focused, "real_device_navigation": False}))
     return 0

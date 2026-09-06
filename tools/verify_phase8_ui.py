@@ -2,8 +2,9 @@
 """Verify Phase 8 mode consoles and paired portrait UI with local API mocks.
 
 This is a deterministic browser smoke check. It proves the built frontend can
-render the required layout contracts and browser-owned camera handoff without
-claiming a real Pi display, Wi-Fi AP, phone camera, or physical touch session.
+render the required layout contracts, browser-owned camera handoff, automatic
+stable-frame classification, and manual-photo fallback. It uses a synthetic
+camera feed and does not claim a real Pi display, Wi-Fi AP, or physical touch.
 """
 
 from __future__ import annotations
@@ -230,9 +231,44 @@ def api_handler(
     elif path.endswith("/library/records"):
         route.fulfill(json=library_fixture())
     elif path.endswith("/mode/controller/crop"):
-        route.fulfill(json={"ok": True, "detail": "UI fixture"})
+        payload = route.request.post_data_buffer or b""
+        crop_hash = multipart_field(payload, "crop_hash")
+        width = int(multipart_field(payload, "width") or 1)
+        height = int(multipart_field(payload, "height") or 1)
+        request_id = multipart_field(payload, "client_request_id") or "fixture-crop"
+        route.fulfill(json={
+            "ok": True,
+            "request_id": request_id,
+            "crop": {"sha256": crop_hash, "width": width, "height": height, "bytes": len(payload)},
+            "classification": {
+                "request_id": request_id,
+                "crop_hash": crop_hash,
+                "duration_ms": 25,
+                "result": {
+                    "status": "accepted", "species_id": "in:ficus-benghalensis",
+                    "common_name": "Banyan", "scientific_name": "Ficus benghalensis",
+                    "family": "Moraceae", "category": "Indian native",
+                    "conservation_status": "Not assessed", "confidence": 0.86,
+                    "short_notes": "Large fig with aerial roots.", "sources": ["fixture:catalog"],
+                    "classifier_version": "fixture-v1", "is_stub": False, "suggestions": [],
+                },
+            },
+        })
     else:
         route.fulfill(json={"ok": True, "detail": "Phase 8 UI verification"})
+
+
+def multipart_field(payload: bytes, name: str) -> str:
+    marker = f'name="{name}"'.encode("utf-8")
+    start = payload.find(marker)
+    if start < 0:
+        return ""
+    start = payload.find(b"\r\n\r\n", start)
+    if start < 0:
+        return ""
+    start += 4
+    end = payload.find(b"\r\n", start)
+    return payload[start:end].decode("utf-8", errors="replace") if end >= 0 else ""
 
 
 def new_context(
@@ -366,15 +402,38 @@ def fixture_photo() -> dict[str, object]:
     return {"name": "plant-fixture.svg", "mimeType": "image/svg+xml", "buffer": svg}
 
 
+def write_fake_camera_video(path: Path) -> None:
+    """Write a repeated, textured Y4M frame for deterministic live lock-on."""
+    width, height = 320, 240
+    y_plane = bytes(
+        175 if ((x // 32) + (y // 32)) % 2 else 70
+        for y in range(height)
+        for x in range(width)
+    )
+    chroma = bytes([110]) * ((width // 2) * (height // 2))
+    frame = b"FRAME\n" + y_plane + chroma + chroma
+    path.write_bytes(
+        f"YUV4MPEG2 W{width} H{height} F10:1 Ip A1:1 C420jpeg\n".encode("ascii")
+        + frame * 80
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     args.output.mkdir(parents=True, exist_ok=True)
+    fake_camera = args.output / "stable-camera.y4m"
+    write_fake_camera_video(fake_camera)
 
     with serve_dist() as url, sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             executable_path=args.chromium,
             headless=True,
-            args=["--no-sandbox"],
+            args=[
+                "--no-sandbox",
+                "--use-fake-device-for-media-stream",
+                "--use-fake-ui-for-media-stream",
+                f"--use-file-for-fake-video-capture={fake_camera.resolve()}",
+            ],
         )
 
         for mode, filename, marker in (
@@ -460,16 +519,37 @@ def main(argv: list[str] | None = None) -> int:
             page.wait_for_selector(".detector-fallback-label", timeout=3000)
             page.wait_for_timeout(250)
             assert_portrait_layout(page)
-            assert page.get_by_text("Continuous phone video never reaches the Pi.", exact=False).is_visible()
+            assert page.get_by_text("Live video stays on this phone.", exact=False).is_visible()
             page.screenshot(path=str(args.output / "paired-camera-390x844.png"))
 
             page.get_by_label("Open the phone camera or choose a local plant image").set_input_files(fixture_photo())
             page.wait_for_timeout(250)
-            page.wait_for_selector(".manual-crop-control", timeout=3000)
+            page.wait_for_selector(".networked-result-card", timeout=3000)
             page.wait_for_timeout(150)
-            assert page.get_by_text("Manual crop inset", exact=False).is_visible()
+            assert page.get_by_text("Banyan", exact=True).is_visible()
             assert_portrait_layout(page)
             page.screenshot(path=str(args.output / "paired-manual-crop-390x844.png"))
+        finally:
+            context.close()
+
+        context, page = new_context(
+            browser,
+            mode_status("NETWORKED_PAIRED", role="remote"),
+            {"width": 390, "height": 844},
+            token="phase8-browser-token",
+        )
+        try:
+            context.grant_permissions(["camera"], origin=url)
+            page.goto(url, wait_until="domcontentloaded")
+            page.get_by_text("Scan for Plants", exact=True).click()
+            page.locator("video").wait_for(state="visible", timeout=3000)
+            page.get_by_text("Banyan", exact=True).first.wait_for(state="visible", timeout=10000)
+            assert page.locator(".networked-stability-strip .filled").count() == 3
+            assert page.get_by_text("Ficus benghalensis", exact=True).is_visible()
+            assert page.get_by_text("Moraceae", exact=True).is_visible()
+            assert page.get_by_text("86% confidence", exact=False).is_visible()
+            assert_portrait_layout(page)
+            page.screenshot(path=str(args.output / "paired-live-match-390x844.png"), full_page=True)
         finally:
             context.close()
         browser.close()

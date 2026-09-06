@@ -73,7 +73,7 @@ through to the service, for example `./start.sh --port 8001`. Use
 - Local cropped discovery images
 - Private Pi Wi-Fi handoff with one paired browser controller
 - Optional no-account Cloudflare Quick Tunnel handoff over HTTPS (AP remains a fallback)
-- Responsive phone camera flow with crop-only upload and optional save-time location
+- Responsive phone camera flow with stability-gated live JPEGs, automatic identification, manual photos, and optional save-time location
 - Offline botanical catalog lookup and voice controls
 - Weed detection as the final beta stage
 

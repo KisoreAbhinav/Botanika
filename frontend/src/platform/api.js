@@ -1,6 +1,6 @@
 // Botanika local API client. Every mode uses the same Pi backend. A paired
-// controller token is attached to controller-only operations; live browser
-// video is never sent here.
+// controller token is attached to controller-only operations. Continuous
+// browser video is never sent here; live scan uses stability-gated JPEGs.
 
 const BASE = "/api/v1";
 const TOKEN_KEY = "botanika.controller.token";

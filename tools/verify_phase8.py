@@ -139,10 +139,11 @@ def _static_checks() -> list[Check]:
             "getUserMedia" in browser_source
             and 'capture="environment"' in browser_source
             and "classifyControllerCrop" in browser_source
-            and "Continuous phone video never reaches the Pi." in browser_source
+            and "Live video stays on this phone." in browser_source
+            and "REQUIRED_STABLE_SAMPLES" in browser_source
             and "PREVIEW_URL" not in browser_source
             and "EventSource" not in browser_source,
-            "camera ownership and crop-only handoff stay in the paired browser",
+            "camera ownership and stability-gated crop handoff stay in the paired browser",
         )
     )
     checks.append(

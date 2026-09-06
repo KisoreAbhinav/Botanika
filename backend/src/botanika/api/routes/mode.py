@@ -174,7 +174,7 @@ async def classify_controller_crop(
     height: int | None = Form(default=None, ge=1, le=10000),
     client_request_id: str | None = Form(default=None, max_length=120),
 ) -> dict[str, Any]:
-    """Classify one already-cropped image; no live browser frame is accepted."""
+    """Classify one bounded browser crop, including a stability-gated live sample."""
 
     runtime = get_runtime(request)
     lease = require_controller(runtime, request)
@@ -198,7 +198,7 @@ async def classify_controller_crop(
     request_id = _request_id(client_request_id)
     try:
         # The external path is serialized inside ScanService because there is
-        # one active controller. Keep this bounded crop write/classification
+        # one active controller. Keep this bounded sample write/classification
         # together in the request task so retry ordering stays deterministic
         # without creating a second inference owner.
         run = runtime.scan.classify_external_crop(

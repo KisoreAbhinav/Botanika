@@ -105,7 +105,8 @@ Press the configured mode button, use the Pi kiosk `Mode` action, or press
 `N` during development to enter NETWORKED_UNPAIRED. The Pi shows the AP
 guidance and a short-lived one-use pairing code. The first phone to pair owns
 the controller lease; the Pi then becomes an 800×480 status console while the
-phone uses its own camera and uploads still crops only. Lease expiry,
+phone uses its own camera and uploads only stability-gated JPEG samples or
+explicit manual photos; continuous video remains on the phone. Lease expiry,
 disconnect, takeover, mode changes, and restart revoke the controller.
 The code is returned only to the Pi's loopback UI; remote status and landing
 responses redact it, and operator mode/takeover controls reject AP clients.

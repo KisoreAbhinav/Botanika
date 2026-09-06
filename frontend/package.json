@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/app/hotkeys.test.js src/features/scan/scanState.test.js src/features/scan/scanOverlayState.test.js src/features/mode/modeState.test.js src/features/networked/browserCapabilities.test.js src/features/weeds/weedGeometry.test.js src/features/weeds/weedLocation.test.js",
+    "test": "node --test src/app/hotkeys.test.js src/features/scan/scanState.test.js src/features/scan/scanOverlayState.test.js src/features/mode/modeState.test.js src/features/networked/browserCapabilities.test.js src/features/networked/livePlantScan.test.js src/features/weeds/weedGeometry.test.js src/features/weeds/weedLocation.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

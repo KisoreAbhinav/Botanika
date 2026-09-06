@@ -316,11 +316,13 @@ function ObservationMap({ mapData }) {
   }, []);
 
   useEffect(() => {
-    if (!mapElement.current || locations.length === 0) return undefined;
+    if (!mapElement.current) return undefined;
     setTileUnavailable(typeof navigator !== "undefined" && navigator.onLine === false);
     const map = L.map(mapElement.current, {
-      center: [20, 0],
-      zoom: 2,
+      // The checklist is scoped to Vellore, so an empty library still opens
+      // on a useful local street map instead of hiding the map entirely.
+      center: [12.9165, 79.1325],
+      zoom: 12,
       minZoom: 2,
       maxZoom: 19,
       zoomControl: true,
@@ -335,9 +337,11 @@ function ObservationMap({ mapData }) {
     tiles.addTo(map);
 
     const points = locations.map((location) => [Number(location.latitude), Number(location.longitude)]);
-    const bounds = L.latLngBounds(points);
     if (points.length === 1) map.setView(points[0], 16);
-    else map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+    else if (points.length > 1) {
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+    }
 
     const groups = groupNearbyLocations(locations);
     groups.forEach((group) => group.forEach((location, index) => {
@@ -390,12 +394,8 @@ function ObservationMap({ mapData }) {
         <span>{locations.length} mapped observation{locations.length === 1 ? "" : "s"}</span>
       </div>
       <p className="map-note">{mapData?.message || "Save a discovery with an accurate phone location to place it on the map."}</p>
-      {locations.length > 0 ? (
-        <>
-          {tileUnavailable && <div className="map-offline" role="status">Street map tiles are unavailable offline. Saved observations are listed below.</div>}
-          <div className="observation-map" ref={mapElement} aria-label="Interactive street map of saved plant observations" />
-        </>
-      ) : <div className="empty-state map-empty">No mapped observations yet.</div>}
+      {tileUnavailable && <div className="map-offline" role="status">Street map tiles are unavailable offline. Saved observations are listed below.</div>}
+      <div className="observation-map" ref={mapElement} data-testid="observation-map" aria-label="Interactive street map of saved plant observations" />
       <div className="map-legend" aria-label="Map category legend">
         {(mapData?.legend || []).map((item) => <span key={item.category}><i style={{ backgroundColor: item.color }} aria-hidden="true" />{item.label}</span>)}
       </div>

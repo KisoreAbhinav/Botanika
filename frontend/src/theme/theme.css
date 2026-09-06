@@ -3152,6 +3152,7 @@ textarea:focus-visible {
 .local-result-box {
   position: absolute;
   inset: 4px;
+  z-index: 1;
   border: 2px dashed var(--ochre);
   pointer-events: none;
 }
@@ -3169,6 +3170,27 @@ textarea:focus-visible {
   color: var(--surface);
   padding: 4px 6px;
   font-size: 11px;
+}
+
+.networked-stability-strip {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 5px;
+  transform: translateX(-50%);
+}
+
+.networked-stability-strip span {
+  width: 28px;
+  height: 6px;
+  border: 1px solid rgba(247, 244, 233, .9);
+  background: rgba(39, 39, 36, .45);
+}
+
+.networked-stability-strip span.filled {
+  background: var(--green);
 }
 
 .manual-crop-control {

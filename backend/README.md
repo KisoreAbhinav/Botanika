@@ -140,11 +140,13 @@ optional configuration, boot outputs are forced low before the safe SOLO state
 is shown, and cleanup is idempotent. Without a GPIO backend, the `/mode/toggle`
 route and keyboard `N` shortcut provide the same software fallback.
 
-On a secure origin, the paired browser owns its `getUserMedia` camera. The
-private-HTTP AP path uses the native `capture="environment"` still input because
-stream and geolocation APIs require a secure context. The browser-side detector
-is currently intentionally unavailable, so the UI labels a manual capture/photo
-fallback, performs a local crop/quality gate, and uploads one still crop only.
+On a secure origin, the paired browser owns its `getUserMedia` camera. It runs
+local quality and motion checks, then uploads one bounded JPEG after three
+stable samples for automatic Pi classification; a materially changed view
+starts a new lock-on. The private-HTTP AP path uses the native
+`capture="environment"` still input because stream and geolocation APIs require
+a secure context. That manual photo is quality-checked and classified
+automatically as well.
 `/api/v1/mode/controller/crop` checks the uploaded hash and dimensions, then
 reuses the existing Pi classifier. The existing library save route remains
 authoritative and accepts optional browser position only during an explicit
