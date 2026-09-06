@@ -73,6 +73,7 @@ class QuickTunnelTests(unittest.TestCase):
     def test_start_returns_immediately_and_reaches_ready_while_draining_output(self):
         process = FakeProcess(
             "2026-09-04 info https://leaf.trycloudflare.com\n"
+            "2026-09-04 INF Registered tunnel connection connIndex=0 protocol=quic\n"
             "2026-09-04 info still-connected\n"
         )
         calls = []
@@ -132,8 +133,11 @@ class QuickTunnelTests(unittest.TestCase):
         self.assertEqual(timeout_service.status().error, "startup_timeout")
         self.assertTrue(hanging.terminated)
 
-    def test_exit_after_url_and_diagnostics_are_bounded(self):
-        output = "https://leaf.trycloudflare.com\n" + "\n".join(
+    def test_exit_after_registered_url_and_diagnostics_are_bounded(self):
+        output = (
+            "https://leaf.trycloudflare.com\n"
+            "Registered tunnel connection connIndex=0 protocol=quic\n"
+        ) + "\n".join(
             f"diagnostic-{index}" for index in range(20)
         )
         process = FakeProcess(output, returncode=1)
@@ -147,6 +151,18 @@ class QuickTunnelTests(unittest.TestCase):
         self.assertEqual(service.status().error, "process_exit")
         self.assertIn("after publishing", service.status().detail)
         self.assertLessEqual(len(service.status().diagnostics), 3)
+
+    def test_url_without_registered_connection_never_becomes_ready(self):
+        process = FakeProcess("https://leaf.trycloudflare.com\n", returncode=1)
+        service = QuickTunnelService(
+            enabled=True,
+            startup_timeout_seconds=2,
+            popen=lambda *_args, **_kwargs: process,
+        )
+        service.start()
+        self.assertTrue(self._wait_for(lambda: service.status().state == "failed"))
+        self.assertIsNone(service.status().url)
+        self.assertIn("before registering", service.status().detail)
 
     def test_stop_uses_kill_fallback_when_child_ignores_terminate(self):
         process = KillFallbackProcess()
@@ -164,7 +180,10 @@ class QuickTunnelTests(unittest.TestCase):
 
     def test_restart_terminates_previous_child_and_stale_worker_cannot_overwrite(self):
         old = FakeProcess()
-        new = FakeProcess("https://new.trycloudflare.com\n")
+        new = FakeProcess(
+            "https://new.trycloudflare.com\n"
+            "Registered tunnel connection connIndex=0 protocol=quic\n"
+        )
         processes = iter((old, new))
         service = QuickTunnelService(
             enabled=True,

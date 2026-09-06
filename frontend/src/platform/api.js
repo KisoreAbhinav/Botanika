@@ -304,7 +304,7 @@ export async function classifyControllerCrop({
   requestId,
 }) {
   const form = new FormData();
-  form.append("file", blob, "botanika-crop.png");
+  form.append("file", blob, "botanika-crop.jpg");
   if (hash) form.append("crop_hash", hash);
   form.append("width", String(width));
   form.append("height", String(height));

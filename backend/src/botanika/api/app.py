@@ -340,19 +340,50 @@ def _mount_static(app: FastAPI, settings: AppSettings) -> None:
         return await network_landing(request)
 
     if FRONTEND_DIST.is_dir():
-        index_html = (FRONTEND_DIST / "index.html").read_text(encoding="utf-8")
+        index_path = FRONTEND_DIST / "index.html"
+
+        def frontend_index_response() -> HTMLResponse:
+            """Read the shell on each request so a rebuilt UI is picked up.
+
+            The API can stay alive while the launcher rebuilds the frontend.
+            Keeping an index string captured at application startup meant an
+            already-running process continued advertising the previous hashed
+            JavaScript bundle until it was manually restarted.
+            """
+
+            try:
+                index_html = index_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise NotFoundError("frontend index is unavailable") from exc
+            return HTMLResponse(
+                index_html,
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                },
+            )
 
         @app.get("/", include_in_schema=False)
         async def frontend_index():
-            return HTMLResponse(index_html)
+            return frontend_index_response()
 
         @app.get("/{asset_path:path}", include_in_schema=False)
         async def frontend_asset(asset_path: str):
             if asset_path.startswith(("api/", "media/")):
                 raise NotFoundError("local resource not found")
             if not Path(asset_path).suffix:
-                return HTMLResponse(index_html)
-            return _local_file_response(FRONTEND_DIST, asset_path)
+                return frontend_index_response()
+            return _local_file_response(
+                FRONTEND_DIST,
+                asset_path,
+                headers={
+                    # Vite emits content-hashed assets, but no-store keeps a
+                    # manually rebuilt checkout safe when an old URL is still
+                    # present in a browser cache or service worker.
+                    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                },
+            )
 
         return
 
@@ -367,7 +398,12 @@ def _mount_static(app: FastAPI, settings: AppSettings) -> None:
         )
 
 
-def _local_file_response(root: Path, relative_path: str) -> Response:
+def _local_file_response(
+    root: Path,
+    relative_path: str,
+    *,
+    headers: dict[str, str] | None = None,
+) -> Response:
     """Serve one small loopback asset without an implicit worker-thread pool."""
 
     candidate = (root / relative_path).resolve()
@@ -375,7 +411,7 @@ def _local_file_response(root: Path, relative_path: str) -> Response:
     if not candidate.is_relative_to(resolved_root) or not candidate.is_file():
         raise NotFoundError("local resource not found")
     media_type = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
-    return Response(candidate.read_bytes(), media_type=media_type)
+    return Response(candidate.read_bytes(), media_type=media_type, headers=headers)
 
 
 def _render_network_landing(

@@ -21,6 +21,7 @@ import numpy as np
 from botanika.core.settings import AppSettings
 from botanika.storage.weeds import NO_POSITION_MESSAGE, WeedObservationStore
 from botanika.vision.detection import BoundingBox, Detection, DetectorError, ModelManifest, YoloOnnxDetector
+from botanika.vision.detection.yolo import _class_aware_nms
 
 
 class WeedUnavailable(RuntimeError):
@@ -237,7 +238,7 @@ class WeedService:
         position: dict[str, Any] | None = None,
         include_frame: bool = False,
     ) -> dict[str, Any]:
-        if not isinstance(image, np.ndarray) or image.ndim != 3 or image.shape[2] != 3 or image.dtype != np.uint8:
+        if not isinstance(image, np.ndarray) or image.ndim != 3 or image.shape[2] != 3 or image.dtype != np.uint8 or min(image.shape[:2]) == 0:
             raise ValueError("weed input must be a uint8 three-channel image")
         status = self.status()
         if self.detector is None or self.manifest is None:
@@ -255,7 +256,7 @@ class WeedService:
                 "image_height": int(image.shape[0]),
             }
         try:
-            generic = self.detector.detect(image)
+            generic = self._detect_multiscale(image)
         except DetectorError as exc:
             self.error = str(exc)
             return {
@@ -326,6 +327,134 @@ class WeedService:
         if include_frame:
             result["frame_data_url"] = _jpeg_data_url(image)
         return result
+
+    def _detect_multiscale(self, image: np.ndarray) -> list[Detection]:
+        """Keep whole plants and recover small weeds with at most six extra views.
+
+        Small inputs already fit the model. Larger inputs use overlapping
+        tiles, with the longer axis receiving three divisions and the other
+        two. All boxes are mapped back before class-aware suppression.
+        """
+
+        assert self.manifest is not None and self.detector is not None
+        detections = list(self.detector.detect(image))
+        height, width = image.shape[:2]
+        # Only trustworthy full-frame boxes may suppress a tile result. A
+        # malformed, unsupported, or below-threshold parent is not evidence
+        # that a valid small-object detection is a duplicate.
+        whole_frame = tuple(
+            Detection(
+                class_id=item.class_id,
+                label=item.label,
+                confidence=float(item.confidence),
+                box=item.box.clamp(width, height),
+            )
+            for item in detections
+            if item.label in self.manifest.labels
+            and np.isfinite(item.confidence)
+            and self.settings.weed_confidence <= item.confidence <= 1.0
+            and _finite_box(item.box)
+            and item.box.area > 0
+        )
+        if width > self.manifest.input_width or height > self.manifest.input_height:
+            columns, rows = (3, 2) if width >= height else (2, 3)
+            for top, bottom in _tile_intervals(height, rows):
+                for left, right in _tile_intervals(width, columns):
+                    tile = np.ascontiguousarray(image[top:bottom, left:right])
+                    for item in self.detector.detect(tile):
+                        if not _finite_box(item.box):
+                            continue
+                        box = item.box.clamp(right - left, bottom - top)
+                        if box.area <= 0:
+                            continue
+                        source_box = BoundingBox(box.x1 + left, box.y1 + top,
+                                                 box.x2 + left, box.y2 + top)
+                        # Dense patches can fill several tiles. Do not count
+                        # their contained fragments as additional weeds.
+                        if any(
+                            parent.class_id == item.class_id
+                            # A broad full-frame prediction often overlaps a
+                            # tile boundary. Keep the original containment
+                            # rule for ordinary boxes. Relax it only when the
+                            # tile box actually touches an edge and the
+                            # parent continues beyond that same edge, which
+                            # is evidence that the tile clipped one object.
+                            and parent.box.area >= 2 * source_box.area
+                            and (
+                                _covered_fraction(source_box, parent.box) >= 0.8
+                                or (
+                                    _covered_fraction(source_box, parent.box) >= 0.65
+                                    and _edge_clipped(
+                                        source_box,
+                                        parent.box,
+                                        left,
+                                        top,
+                                        right,
+                                        bottom,
+                                    )
+                                )
+                            )
+                            for parent in whole_frame
+                        ):
+                            continue
+                        detections.append(Detection(
+                            class_id=item.class_id,
+                            label=item.label,
+                            confidence=item.confidence,
+                            box=source_box,
+                        ))
+        return _class_aware_nms(
+            [item for item in detections
+             if item.label in self.manifest.labels
+             and np.isfinite(item.confidence)
+             and self.settings.weed_confidence <= item.confidence <= 1.0
+             and _finite_box(item.box)
+             and item.box.area > 0],
+            self.settings.weed_nms_iou,
+            100,
+        )
+
+
+def _covered_fraction(box: BoundingBox, parent: BoundingBox) -> float:
+    intersection = BoundingBox(max(box.x1, parent.x1), max(box.y1, parent.y1),
+                               min(box.x2, parent.x2), min(box.y2, parent.y2)).area
+    return intersection / box.area if box.area > 0 else 0.0
+
+
+def _finite_box(box: BoundingBox) -> bool:
+    return bool(np.all(np.isfinite((box.x1, box.y1, box.x2, box.y2))))
+
+
+def _edge_clipped(
+    box: BoundingBox,
+    parent: BoundingBox,
+    tile_left: int,
+    tile_top: int,
+    tile_right: int,
+    tile_bottom: int,
+    *,
+    tolerance: float = 2.0,
+) -> bool:
+    """Return whether a tile box and its parent continue across one edge."""
+
+    return any((
+        box.x1 <= tile_left + tolerance
+        and parent.x1 < tile_left - tolerance,
+        box.x2 >= tile_right - tolerance
+        and parent.x2 > tile_right + tolerance,
+        box.y1 <= tile_top + tolerance
+        and parent.y1 < tile_top - tolerance,
+        box.y2 >= tile_bottom - tolerance
+        and parent.y2 > tile_bottom + tolerance,
+    ))
+
+
+def _tile_intervals(length: int, count: int) -> list[tuple[int, int]]:
+    """Cover an axis with equal tiles and approximately 12% overlap."""
+
+    size = min(length, int(np.ceil(length / (count - (count - 1) * 0.12))))
+    starts = np.linspace(0, length - size, count).round().astype(int)
+    return list(dict.fromkeys((int(start), int(start) + size) for start in starts))
 
 
 def _position_if_accurate(position: dict[str, Any] | None, maximum_accuracy: float) -> dict[str, Any] | None:

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { deleteLibraryRecord, fetchLibrary, updateLibraryNote } from "../../platform/api.js";
 import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
@@ -296,17 +298,91 @@ export function LibraryPage({ notify }) {
 }
 
 function ObservationMap({ mapData }) {
-  const locations = mapData?.locations || [];
-  const bounds = locations.reduce((result, location) => ({
-    minLat: Math.min(result.minLat, Number(location.latitude)),
-    maxLat: Math.max(result.maxLat, Number(location.latitude)),
-    minLon: Math.min(result.minLon, Number(location.longitude)),
-    maxLon: Math.max(result.maxLon, Number(location.longitude)),
-  }), { minLat: Infinity, maxLat: -Infinity, minLon: Infinity, maxLon: -Infinity });
-  const latEqual = bounds.maxLat === bounds.minLat;
-  const lonEqual = bounds.maxLon === bounds.minLon;
-  const latRange = Number.isFinite(bounds.maxLat - bounds.minLat) && !latEqual ? bounds.maxLat - bounds.minLat : 0.01;
-  const lonRange = Number.isFinite(bounds.maxLon - bounds.minLon) && !lonEqual ? bounds.maxLon - bounds.minLon : 0.01;
+  const mapElement = useRef(null);
+  const [tileUnavailable, setTileUnavailable] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  const locations = useMemo(() => (mapData?.locations || []).filter((location) => (
+    Number.isFinite(Number(location.latitude)) && Number.isFinite(Number(location.longitude))
+  )), [mapData]);
+
+  useEffect(() => {
+    const setOffline = () => setTileUnavailable(true);
+    const setOnline = () => setTileUnavailable(false);
+    window.addEventListener("offline", setOffline);
+    window.addEventListener("online", setOnline);
+    return () => {
+      window.removeEventListener("offline", setOffline);
+      window.removeEventListener("online", setOnline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapElement.current || locations.length === 0) return undefined;
+    setTileUnavailable(typeof navigator !== "undefined" && navigator.onLine === false);
+    const map = L.map(mapElement.current, {
+      center: [20, 0],
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 19,
+      zoomControl: true,
+      scrollWheelZoom: true,
+      attributionControl: true,
+    });
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>',
+    });
+    tiles.on("tileerror", () => setTileUnavailable(true));
+    tiles.addTo(map);
+
+    const points = locations.map((location) => [Number(location.latitude), Number(location.longitude)]);
+    const bounds = L.latLngBounds(points);
+    if (points.length === 1) map.setView(points[0], 16);
+    else map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+
+    const groups = groupNearbyLocations(locations);
+    groups.forEach((group) => group.forEach((location, index) => {
+      const position = spreadLocation(location, index, group.length);
+      const marker = L.marker(position, {
+        icon: L.divIcon({
+          className: "map-marker observation-marker-icon",
+          html: "<span aria-hidden=\"true\"></span>",
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+          tooltipAnchor: [0, -22],
+        }),
+        riseOnHover: true,
+        keyboard: true,
+        title: `${location.common_name || "Saved observation"} · ${formatCoordinates(location)}`,
+      }).addTo(map);
+      const element = marker.getElement();
+      if (element) {
+        element.style.setProperty("--marker-color", location.category_color || "#6f6257");
+        // Keep each marker independently discoverable to keyboard and browser
+        // tooling even when Leaflet has fanned several markers from one fix.
+        element.dataset.testid = "map-marker";
+        element.setAttribute("role", "button");
+        element.setAttribute("aria-label", `${location.common_name || "Saved observation"} at ${formatCoordinates(location)}`);
+        element.setAttribute("href", markerHref(location, index));
+      }
+      marker.bindTooltip(location.common_name || "Saved observation", {
+        permanent: true,
+        direction: "top",
+        className: "map-label",
+        offset: [0, -11],
+      });
+      marker.bindPopup(createObservationPopup(location));
+    }));
+
+    // Leaflet measures its container during construction. The library panel
+    // can finish its flex layout a frame later, especially on the kiosk.
+    const resize = window.setTimeout(() => map.invalidateSize(), 0);
+    return () => {
+      window.clearTimeout(resize);
+      tiles.off();
+      map.remove();
+    };
+  }, [locations]);
+
   return (
     <section className="library-map-panel" aria-label="Discovery map">
       <div className="library-map-head">
@@ -315,36 +391,98 @@ function ObservationMap({ mapData }) {
       </div>
       <p className="map-note">{mapData?.message || "Save a discovery with an accurate phone location to place it on the map."}</p>
       {locations.length > 0 ? (
-        <div className="observation-map" role="img" aria-label="Schematic map of saved plant observation coordinates">
-          <div className="map-grid" aria-hidden="true" />
-          {locations.map((location, index) => {
-            const left = lonEqual ? 50 : 7 + ((Number(location.longitude) - bounds.minLon) / lonRange) * 86;
-            const top = latEqual ? 50 : 92 - ((Number(location.latitude) - bounds.minLat) / latRange) * 84;
-            return (
-              <a
-                className="map-marker"
-                href={location.map_url}
-                target="_blank"
-                rel="noreferrer"
-                key={`${location.observation_id || "location"}-${location.sample_id || index}`}
-                style={{ left: `${Math.max(3, Math.min(97, left))}%`, top: `${Math.max(3, Math.min(97, top))}%`, backgroundColor: location.category_color || "#6f6257" }}
-                title={`${location.common_name} · ${location.category} · ${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}`}
-                aria-label={`Open map for ${location.common_name} at ${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}`}
-              >
-                <span className="visually-hidden">{location.common_name}</span>
-              </a>
-            );
-          })}
-        </div>
+        <>
+          {tileUnavailable && <div className="map-offline" role="status">Street map tiles are unavailable offline. Saved observations are listed below.</div>}
+          <div className="observation-map" ref={mapElement} aria-label="Interactive street map of saved plant observations" />
+        </>
       ) : <div className="empty-state map-empty">No mapped observations yet.</div>}
       <div className="map-legend" aria-label="Map category legend">
         {(mapData?.legend || []).map((item) => <span key={item.category}><i style={{ backgroundColor: item.color }} aria-hidden="true" />{item.label}</span>)}
       </div>
       {locations.length > 0 && <div className="map-location-list">
-        {locations.map((location, index) => <a href={location.directions_url} target="_blank" rel="noreferrer" key={`${location.observation_id || "loc"}-link-${index}`}><span style={{ color: location.category_color }}>●</span> {location.common_name} · {Number(location.latitude).toFixed(5)}, {Number(location.longitude).toFixed(5)} · Open directions</a>)}
+        {locations.map((location, index) => <div className="map-location-row" key={`${location.observation_id || "loc"}-link-${index}`}>
+          <a
+            className="map-list-marker map-marker"
+            data-testid="map-marker"
+            href={directionsUrl(location)}
+            target="_blank"
+            rel="noreferrer"
+            style={{ backgroundColor: location.category_color || "#6f6257" }}
+            title={`${location.common_name || "Saved observation"} · ${formatCoordinates(location)}`}
+            aria-label={`${location.common_name || "Saved observation"} at ${formatCoordinates(location)}`}
+          />
+          <span className="map-location-name">{location.common_name || "Saved observation"}{location.scientific_name && <em className="map-location-species"> · {location.scientific_name}</em>}</span>
+          <span className="map-location-coordinates">{formatCoordinates(location)}</span>
+          <a className="btn quiet map-directions" href={directionsUrl(location)} target="_blank" rel="noreferrer">Walking directions</a>
+        </div>)}
       </div>}
     </section>
   );
+}
+
+function groupNearbyLocations(locations) {
+  const groups = new Map();
+  locations.forEach((location) => {
+    // Four decimal places is roughly an 11 m cell around Vellore. This keeps
+    // coincident GPS fixes selectable while also separating near misses.
+    const key = `${Number(location.latitude).toFixed(4)}:${Number(location.longitude).toFixed(4)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(location);
+  });
+  return [...groups.values()];
+}
+
+function spreadLocation(location, index, count) {
+  if (count < 2) return [Number(location.latitude), Number(location.longitude)];
+  const radius = 0.00012;
+  const angle = (index / count) * Math.PI * 2;
+  const latitude = Number(location.latitude) + Math.sin(angle) * radius;
+  const longitude = Number(location.longitude) + (Math.cos(angle) * radius) / Math.max(0.2, Math.cos(Number(location.latitude) * Math.PI / 180));
+  return [latitude, longitude];
+}
+
+function formatCoordinates(location) {
+  return `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}`;
+}
+
+function directionsUrl(location) {
+  if (location.directions_url) return location.directions_url;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${location.latitude},${location.longitude}`)}&travelmode=walking&dir_action=navigate`;
+}
+
+function markerHref(location, index) {
+  const target = location.map_url || directionsUrl(location);
+  const token = location.observation_id || location.sample_id || index;
+  return `${target}${target.includes("?") ? "&" : "?"}botanika_observation=${encodeURIComponent(token)}`;
+}
+
+function createObservationPopup(location) {
+  const popup = document.createElement("div");
+  popup.className = "map-popup";
+  const title = document.createElement("strong");
+  title.textContent = location.common_name || "Saved observation";
+  popup.appendChild(title);
+  if (location.scientific_name) {
+    const scientific = document.createElement("em");
+    scientific.textContent = location.scientific_name;
+    popup.appendChild(scientific);
+  }
+  const metadata = document.createElement("span");
+  metadata.textContent = `${location.category || "Observation"} · ${formatCoordinates(location)}`;
+  popup.appendChild(metadata);
+  const actions = document.createElement("div");
+  actions.className = "map-popup-actions";
+  [[directionsUrl(location), "Walking directions"], [location.map_url, "Open map"]].forEach(([href, label]) => {
+    if (!href) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = label;
+    actions.appendChild(link);
+  });
+  popup.appendChild(actions);
+  return popup;
 }
 
 function RegionalChecklist({ species, catalog, onOpenDetails }) {

@@ -17,7 +17,7 @@ import httpx2
 
 from botanika.api.app import create_app
 from botanika.api.runtime import APP_VERSION
-from botanika.core.settings import AppSettings
+from botanika.core.settings import AppSettings, FRONTEND_DIST
 
 
 def build_test_settings(tmp: Path) -> AppSettings:
@@ -264,6 +264,12 @@ class Phase5ApiContractTest(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Botanika", response.text)
+        self.assertIn("no-store", response.headers.get("cache-control", ""))
+
+        asset_path = next((FRONTEND_DIST / "assets").glob("*.js"))
+        asset = self.client.get(f"/assets/{asset_path.name}")
+        self.assertEqual(asset.status_code, 200)
+        self.assertIn("no-store", asset.headers.get("cache-control", ""))
 
     def test_phase7_network_status_and_landing_page_are_same_origin(self):
         status = self.client.get("/api/v1/network/status")

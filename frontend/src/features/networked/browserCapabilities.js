@@ -9,12 +9,37 @@ export function cameraAccessMode(scope = globalThis) {
  * Attach a browser-owned stream after its video element has mounted. Mobile
  * browsers may resolve getUserMedia before a conditional video element exists.
  */
-export function attachCameraStream(video, stream) {
+export function attachCameraStream(video, stream, onPlaybackError) {
   if (!video || !stream) return false;
-  video.srcObject = stream;
-  const playback = video.play?.();
-  if (playback && typeof playback.catch === "function") playback.catch(() => {});
+  // Set these properties before assigning srcObject. Some mobile Chromium
+  // builds do not consistently honor React's initial media attributes when a
+  // conditional video element mounts after getUserMedia resolves.
+  video.autoplay = true;
+  video.muted = true;
+  video.playsInline = true;
+  if (video.srcObject !== stream) video.srcObject = stream;
+  let playback;
+  try {
+    playback = video.play?.();
+  } catch (error) {
+    if (isCurrentStream(video, stream) && typeof onPlaybackError === "function") onPlaybackError(error);
+    return false;
+  }
+  if (playback && typeof playback.catch === "function") {
+    playback.catch((error) => {
+      if (isCurrentStream(video, stream) && typeof onPlaybackError === "function") onPlaybackError(error);
+    });
+  }
   return true;
+}
+
+function isCurrentStream(video, stream) {
+  // A pending crop unmounts the video while its play promise may still be
+  // settling. Ignore late failures from that detached element.
+  if (video.isConnected === false) return false;
+  if (video.srcObject !== stream) return false;
+  const tracks = stream.getTracks?.();
+  return !Array.isArray(tracks) || tracks.some((track) => track.readyState !== "ended");
 }
 
 export function canRequestPosition(scope = globalThis) {

@@ -39,6 +39,7 @@ _QUICK_TUNNEL_URL_RE = re.compile(
 _LABEL_RE = re.compile(
     r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.trycloudflare\.com$"
 )
+_CONNECTION_READY_MARKER = "Registered tunnel connection"
 
 
 def extract_quick_tunnel_url(line: str) -> str | None:
@@ -374,7 +375,9 @@ class QuickTunnelService:
             return
 
         deadline = self._clock() + self.startup_timeout_seconds
-        found_url = False
+        candidate_url: str | None = None
+        connection_registered = False
+        published_ready = False
         try:
             while True:
                 if stop_event.is_set():
@@ -382,15 +385,17 @@ class QuickTunnelService:
                     return
                 returncode = self._poll(process)
                 if returncode is not None:
-                    discovered = self._drain_available(generation, process)
-                    if not found_url and discovered:
-                        found_url = True
-                        self._ready(generation, discovered)
-                    if not found_url:
+                    discovered, registered = self._drain_available(generation, process)
+                    candidate_url = candidate_url or discovered
+                    connection_registered = connection_registered or registered
+                    if not published_ready and candidate_url and connection_registered:
+                        published_ready = True
+                        self._ready(generation, candidate_url)
+                    if not published_ready:
                         self._fail(
                             generation,
                             "process_exit",
-                            self._exit_detail(returncode),
+                            self._exit_detail(returncode, before_connection=True),
                         )
                     else:
                         self._fail(
@@ -400,16 +405,17 @@ class QuickTunnelService:
                         )
                     return
 
-                if not found_url and self._clock() >= deadline:
+                if not published_ready and self._clock() >= deadline:
                     self._fail(
                         generation,
                         "startup_timeout",
-                        f"cloudflared did not publish a Quick Tunnel URL within {self.startup_timeout_seconds:g} seconds.",
+                        "cloudflared did not register a reachable Quick Tunnel "
+                        f"within {self.startup_timeout_seconds:g} seconds.",
                     )
                     self._terminate_process(process)
                     return
 
-                line = self._read_line(process, self._read_wait(found_url, deadline))
+                line = self._read_line(process, self._read_wait(published_ready, deadline))
                 if line is _EOF:
                     # The process may still be alive while a wrapper closes its
                     # stream.  Keep polling for exit/timeout without blocking.
@@ -418,11 +424,13 @@ class QuickTunnelService:
                 if line is None:
                     continue
                 self._remember_line(generation, line)
-                if not found_url:
-                    candidate = extract_quick_tunnel_url(line)
-                    if candidate:
-                        found_url = True
-                        self._ready(generation, candidate)
+                if candidate_url is None:
+                    candidate_url = extract_quick_tunnel_url(line)
+                if _CONNECTION_READY_MARKER in line:
+                    connection_registered = True
+                if not published_ready and candidate_url and connection_registered:
+                    published_ready = True
+                    self._ready(generation, candidate_url)
         except Exception as exc:
             # A malformed stream or an unusual process wrapper must not leave
             # a live child behind.  The generation guard inside ``_fail``
@@ -471,11 +479,16 @@ class QuickTunnelService:
             return _EOF
         return str(value).rstrip("\r\n")
 
-    def _drain_available(self, generation: int, process: Any) -> str | None:
+    def _drain_available(
+        self,
+        generation: int,
+        process: Any,
+    ) -> tuple[str | None, bool]:
         stream = getattr(process, "stdout", None)
         if stream is None:
-            return None
+            return None, False
         discovered: str | None = None
+        registered = False
         while True:
             try:
                 readable, _, _ = select.select([stream], [], [], 0)
@@ -484,30 +497,34 @@ class QuickTunnelService:
                 # streams used by embedders and tests.  Drain those fully;
                 # never make an arbitrary non-selectable stream block here.
                 if not isinstance(stream, (io.StringIO, io.BytesIO)):
-                    return discovered
+                    return discovered, registered
                 try:
                     value = stream.readline()
                 except (AttributeError, OSError, ValueError):
-                    return discovered
+                    return discovered, registered
                 if not value:
-                    return discovered
+                    return discovered, registered
                 line = str(value).rstrip("\r\n")
                 self._remember_line(generation, line)
                 if discovered is None:
                     discovered = extract_quick_tunnel_url(line)
+                if _CONNECTION_READY_MARKER in line:
+                    registered = True
                 continue
             if not readable:
-                return discovered
+                return discovered, registered
             try:
                 value = stream.readline()
             except (AttributeError, OSError, ValueError):
-                return discovered
+                return discovered, registered
             if not value:
-                return discovered
+                return discovered, registered
             line = str(value).rstrip("\r\n")
             self._remember_line(generation, line)
             if discovered is None:
                 discovered = extract_quick_tunnel_url(line)
+            if _CONNECTION_READY_MARKER in line:
+                registered = True
 
     def _remember_line(self, generation: int, line: str) -> None:
         bounded = _bound_diagnostic(line)
@@ -549,8 +566,19 @@ class QuickTunnelService:
                 started_at=self._status.started_at,
             )
 
-    def _exit_detail(self, returncode: int, *, after_url: bool = False) -> str:
-        suffix = " after publishing a tunnel URL" if after_url else " before publishing a tunnel URL"
+    def _exit_detail(
+        self,
+        returncode: int,
+        *,
+        after_url: bool = False,
+        before_connection: bool = False,
+    ) -> str:
+        if after_url:
+            suffix = " after publishing a tunnel URL"
+        elif before_connection:
+            suffix = " before registering a reachable tunnel connection"
+        else:
+            suffix = " before publishing a tunnel URL"
         return f"cloudflared exited unexpectedly with status {returncode}{suffix}."
 
     @staticmethod

@@ -182,13 +182,20 @@ class CampusClassifierContractTests(unittest.TestCase):
 
             self.assertEqual(artifact["format"], CAMPUS_ARTIFACT_FORMAT)
             self.assertEqual(artifact["metrics"]["training_observations"], 10)
+            self.assertEqual(artifact["calibration"]["prototype_weight"], 0.10)
             self.assertEqual(artifact["metrics"]["held_out_observations"], 6)
             self.assertEqual(artifact["metrics"]["unknown_observations"], 5)
             self.assertIn("coverage", artifact["metrics"]["leave_one_out"])
             self.assertIn("abstentions", artifact["metrics"]["leave_one_out"])
             self.assertIn("wrong_label", artifact["metrics"]["leave_one_out"])
+            self.assertEqual(
+                artifact["metrics"]["leave_one_label_out_unknown"]["observations"],
+                10,
+            )
             self.assertFalse(artifact["deployment_ready"])
             self.assertFalse(classifier.deployment_ready)
+            self.assertEqual([item["sample_count"] for item in classifier._labels], [5, 5])
+            self.assertNotIn("each label needs at least five enrollment images", classifier.deployment_blocker)
             result = classifier.classify(np.full((80, 80, 3), (45, 150, 45), dtype=np.uint8))
             self.assertEqual(result.status, ClassificationStatus.UNCERTAIN)
             self.assertTrue(result.suggestions)

@@ -8,6 +8,12 @@ import {
 } from "./browserCapabilities.js";
 import { CONTROL_SHORTCUTS } from "../../app/hotkeys.js";
 
+// Keep browser-owned uploads comfortably below the backend's 12 MiB request
+// limit, including photos from modern phones with very large sensors. The Pi
+// classifier does not need the original camera resolution for this crop flow.
+const MAX_CROP_DIMENSION = 2048;
+const CROP_JPEG_QUALITY = 0.84;
+
 /**
  * The paired browser owns this camera element. Only the accepted still crop is
  * handed to the Pi classifier; the stream never becomes a request payload.
@@ -26,6 +32,18 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const [error, setError] = useState(null);
   const requestSerial = useRef(0);
+
+  const onCameraPlaybackError = () => {
+    setError("Camera playback was blocked. Tap Start camera to retry.");
+    setCameraState("playback-blocked");
+  };
+
+  const retryCameraPlayback = () => {
+    setError(null);
+    if (attachCameraStream(videoRef.current, streamRef.current, onCameraPlaybackError)) {
+      setCameraState("ready");
+    }
+  };
 
   useEffect(() => {
     let stream;
@@ -59,8 +77,10 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
   // The video is conditional on camera state, so it can mount after the
   // getUserMedia promise resolves. Reattach whenever that element appears.
   useEffect(() => {
-    if (cameraState === "ready") attachCameraStream(videoRef.current, streamRef.current);
-  }, [cameraState]);
+    if (cameraState === "ready") {
+      attachCameraStream(videoRef.current, streamRef.current, onCameraPlaybackError);
+    }
+  }, [cameraState, pending]);
 
   useEffect(() => {
     return () => {
@@ -81,9 +101,16 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
       return;
     }
     const canvas = canvasRef.current || document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d", { willReadFrequently: true }).drawImage(video, 0, 0);
+    const dimensions = boundedDimensions(video.videoWidth, video.videoHeight, MAX_CROP_DIMENSION);
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
+    canvas.getContext("2d", { willReadFrequently: true }).drawImage(
+      video,
+      0,
+      0,
+      dimensions.width,
+      dimensions.height,
+    );
     await prepareCrop(canvas, "camera frame", cropMargin);
   };
 
@@ -94,9 +121,20 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
     try {
       const image = await loadImage(file);
       const canvas = canvasRef.current || document.createElement("canvas");
-      canvas.width = image.naturalWidth || image.width;
-      canvas.height = image.naturalHeight || image.height;
-      canvas.getContext("2d", { willReadFrequently: true }).drawImage(image, 0, 0);
+      const dimensions = boundedDimensions(
+        image.naturalWidth || image.width,
+        image.naturalHeight || image.height,
+        MAX_CROP_DIMENSION,
+      );
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+      canvas.getContext("2d", { willReadFrequently: true }).drawImage(
+        image,
+        0,
+        0,
+        dimensions.width,
+        dimensions.height,
+      );
       await prepareCrop(canvas, "manual image", cropMargin);
     } catch (caught) {
       setError(caught.message || "The selected image could not be read.");
@@ -106,7 +144,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
   const prepareCrop = async (sourceCanvas, source, margin = cropMargin) => {
     setError(null);
     setClassification(null);
-    const canvas = buildManualCrop(sourceCanvas, margin);
+    const canvas = resizeCanvasToMaxDimension(buildManualCrop(sourceCanvas, margin), MAX_CROP_DIMENSION);
     const context = canvas.getContext("2d", { willReadFrequently: true });
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const measured = measureQuality(imageData);
@@ -217,14 +255,16 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
         </div>
         {!pending ? (
           <div className="phone-camera-view">
-            {cameraState === "ready" ? (
+            {cameraState === "starting" || cameraState === "ready" || cameraState === "playback-blocked" ? (
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
                 aria-label="Live phone camera"
-                onLoadedMetadata={(event) => attachCameraStream(event.currentTarget, streamRef.current)}
+                onLoadedMetadata={(event) => attachCameraStream(event.currentTarget, streamRef.current, onCameraPlaybackError)}
+                onCanPlay={(event) => attachCameraStream(event.currentTarget, streamRef.current, onCameraPlaybackError)}
+                onLoadedData={(event) => attachCameraStream(event.currentTarget, streamRef.current, onCameraPlaybackError)}
               />
             ) : (
               <div className="camera-fallback-message">
@@ -232,7 +272,17 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
                 <p>Open the device camera below. The captured still remains local until you approve its crop.</p>
               </div>
             )}
-            <div className="detector-fallback-label">Browser detector unavailable · manual crop fallback</div>
+            <div className="detector-fallback-label">
+              {cameraState === "ready"
+                ? "Live phone camera · capture a still for Pi classification"
+                : cameraState === "playback-blocked"
+                  ? "Camera ready · playback needs a tap"
+                : cameraState === "capture-input"
+                  ? "Still camera · crop stays local until you send it"
+                  : cameraState === "denied"
+                    ? "Camera permission blocked · choose a photo"
+                    : "Starting phone camera…"}
+            </div>
           </div>
         ) : (
           <div className="phone-crop-preview">
@@ -281,6 +331,11 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
               aria-keyshortcuts={CONTROL_SHORTCUTS.phoneCapture}
             >
               Capture crop <kbd aria-hidden="true">Space</kbd>
+            </button>
+          )}
+          {!pending && cameraState === "playback-blocked" && (
+            <button type="button" className="btn green mobile-primary" onClick={retryCameraPlayback}>
+              Start camera
             </button>
           )}
           {!pending && (
@@ -356,8 +411,9 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
                 ? "This is a provisional suggestion. Independent field validation is incomplete, so it cannot be saved yet."
                 : result.short_notes || "Try another angle or a clearer crop."}
             </p>
-            {result.validation_pending && result.suggestions?.length > 0 && (
-              <div className="networked-suggestions">
+            {result.suggestions?.length > 0 && (
+              <div className="networked-suggestions" aria-label="Possible matches, not accepted identifications">
+                <div className="suggestions-heading">Possible matches · not accepted identifications</div>
                 {result.suggestions.map((suggestion) => (
                   <div className="suggestion-row" key={suggestion.scientific_name}>
                     <span>
@@ -369,7 +425,7 @@ export function NetworkedScanPage({ notify, onLeaseLost }) {
                 ))}
               </div>
             )}
-            {result.validation_pending && result.short_notes && <p className="side-copy">{result.short_notes}</p>}
+            {result.short_notes && <p className="side-copy">{result.short_notes}</p>}
             <button type="button" className="btn quiet" onClick={clear} data-hotkey={CONTROL_SHORTCUTS.tryAnotherView} aria-keyshortcuts={CONTROL_SHORTCUTS.tryAnotherView}>Try another view <kbd aria-hidden="true">R</kbd></button>
           </>
         )}
@@ -448,8 +504,42 @@ function buildManualCrop(sourceCanvas, marginPercent) {
 
 function canvasToBlob(canvas) {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The crop could not be encoded.")), "image/png");
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error("The crop could not be encoded.")),
+      "image/jpeg",
+      CROP_JPEG_QUALITY,
+    );
   });
+}
+
+function resizeCanvasToMaxDimension(sourceCanvas, maximumDimension) {
+  const dimensions = boundedDimensions(sourceCanvas.width, sourceCanvas.height, maximumDimension);
+  if (dimensions.width === sourceCanvas.width && dimensions.height === sourceCanvas.height) return sourceCanvas;
+  const resized = document.createElement("canvas");
+  resized.width = dimensions.width;
+  resized.height = dimensions.height;
+  resized.getContext("2d", { willReadFrequently: true }).drawImage(
+    sourceCanvas,
+    0,
+    0,
+    resized.width,
+    resized.height,
+  );
+  return resized;
+}
+
+function boundedDimensions(width, height, maximumDimension) {
+  const sourceWidth = Math.max(1, Number(width) || 1);
+  const sourceHeight = Math.max(1, Number(height) || 1);
+  const longestSide = Math.max(sourceWidth, sourceHeight);
+  if (longestSide <= maximumDimension) {
+    return { width: sourceWidth, height: sourceHeight };
+  }
+  const scale = maximumDimension / longestSide;
+  return {
+    width: Math.max(1, Math.round(sourceWidth * scale)),
+    height: Math.max(1, Math.round(sourceHeight * scale)),
+  };
 }
 
 async function sha256(blob) {

@@ -20,6 +20,34 @@ satisfy the deployment gate.
 
 ## Start here
 
+Double-click `Botanika.desktop` on the Pi, or run the executable launcher from
+a terminal:
+
+```bash
+./start.sh
+```
+
+On first run it creates `.venv`, installs the pinned Python and frontend
+dependencies, builds the current UI, starts the backend, waits for readiness,
+and opens Chromium full-screen on the Pi display. Later runs skip dependency
+installation unless a requirements or package file changed. Every launch
+gracefully stops an old Botanika backend from this checkout, then starts a fresh
+one. If the managed systemd service is installed, the launcher stops it
+through systemd so there is only one copy, then starts the current checkout
+directly. Unknown processes listening on the port are never killed
+automatically. Every launch uses a build-specific kiosk URL and opens the
+current checkout in SOLO/Home. Closing Chromium also stops the backend started
+by the launcher; the temporary public tunnel and its QR code are created only
+after the operator enters Networked mode, and the QR is withheld until
+Cloudflare confirms the connection. The launcher enables the installed
+`cloudflared` Quick Tunnel automatically so this QR flow remains available even
+when it replaces an installed systemd backend with the current checkout.
+
+The service is available at `http://127.0.0.1:8000`. Backend options pass
+through to the service, for example `./start.sh --port 8001`. Use
+`./start.sh --no-kiosk` to run only the backend, or run
+`python3 startup.py --help` for all launcher options.
+
 - [Stage 0 hardware-readiness runbook](docs/STAGE0_TEST_RUNBOOK.md)
 - [Stage 0 readiness report](docs/STAGE0_READINESS_REPORT_2026-09-01.md)
 - [Phase 1 raw-feed report](docs/PHASE1_RAW_FEED_REPORT_2026-09-01.md)

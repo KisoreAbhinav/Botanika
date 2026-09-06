@@ -98,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         "held_out_observations": metrics.get("held_out_observations"),
         "unknown_observations": metrics.get("unknown_observations"),
         "leave_one_out": metrics.get("leave_one_out"),
+        "leave_one_label_out_unknown": metrics.get("leave_one_label_out_unknown"),
         "held_out": metrics.get("held_out"),
         "unknown_rejection_rate": metrics.get("unknown_rejection_rate"),
         "pi_benchmark": metrics.get("pi_benchmark"),

@@ -14,6 +14,7 @@ import tempfile
 import time
 import uuid
 from typing import Any, Callable, Iterable
+from urllib.parse import urlencode
 import zipfile
 
 import cv2
@@ -1148,7 +1149,17 @@ def _location_payload(value: dict[str, Any]) -> dict[str, Any]:
     value["accuracy_m"] = float(value["accuracy_m"])
     value["captured_at"] = float(value["captured_at"])
     value["map_url"] = f"https://www.google.com/maps/search/?api=1&query={coordinate}"
-    value["directions_url"] = f"https://www.google.com/maps/dir/?api=1&destination={coordinate}"
+    value["directions_url"] = (
+        "https://www.google.com/maps/dir/?"
+        + urlencode(
+            {
+                "api": "1",
+                "destination": coordinate,
+                "travelmode": "walking",
+                "dir_action": "navigate",
+            }
+        )
+    )
     value["open_map_label"] = f"Open map at {coordinate}"
     return value
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Start Botanika
+Comment=Set up Botanika and open its full-screen Pi interface
+Exec=/home/pi/Botanika/start.sh
+Path=/home/pi/Botanika
+Icon=applications-science
+Terminal=true
+StartupNotify=true

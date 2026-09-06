@@ -7,6 +7,7 @@ import {
   fetchWeedStatus,
 } from "../../platform/api.js";
 import {
+  attachCameraStream,
   cameraAccessMode,
   canRequestPosition,
   positionPayload,
@@ -36,6 +37,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
   const [status, setStatus] = useState(capabilities?.weeds?.model || null);
   const [selected, setSelected] = useState(null);
   const [result, setResult] = useState(null);
+  const [liveSampleUrl, setLiveSampleUrl] = useState(null);
   const [busy, setBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -56,6 +58,10 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
   useEffect(() => () => {
     if (selected?.url) URL.revokeObjectURL(selected.url);
   }, [selected?.url]);
+
+  useEffect(() => () => {
+    if (liveSampleUrl) URL.revokeObjectURL(liveSampleUrl);
+  }, [liveSampleUrl]);
 
   useEffect(() => {
     const element = previewRef.current;
@@ -93,7 +99,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
       }
       streamRef.current = stream;
       setCameraState("ready");
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      attachCameraStream(videoRef.current, stream);
     }).catch(() => {
       if (!cancelled) setCameraState("denied");
     });
@@ -109,7 +115,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
   // The video element is intentionally conditional when a still fallback is
   // selected. Reattach the live stream when the user returns to the camera.
   useEffect(() => {
-    if (videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current;
+    attachCameraStream(videoRef.current, streamRef.current);
   }, [selected, cameraState]);
 
   // Start one bounded sampler once metadata is available. The in-flight guard
@@ -137,7 +143,9 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
         const position = await locationSamplerRef.current();
         const response = await detectWeedsFrame(blob, position);
         if (cancelled || serial !== liveSerialRef.current) return;
+        setLiveSampleUrl(URL.createObjectURL(blob));
         setResult(response);
+        setError(null);
         setLiveSize({
           width: Number(response.image_width) || canvas.width,
           height: Number(response.image_height) || canvas.height,
@@ -151,6 +159,8 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
       } catch (caught) {
         if (cancelled || serial !== liveSerialRef.current) return;
         if (caught.status === 401) onLeaseLost?.();
+        setResult(null);
+        setLiveSampleUrl(null);
         setError(caught.message || "The live weed sample could not be analyzed.");
       } finally {
         liveRequestRef.current = false;
@@ -175,6 +185,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
     }
     const url = URL.createObjectURL(file);
     setSelected({ file, url });
+    setLiveSampleUrl(null);
     setResult(null);
     setError(null);
     setLivePaused(true);
@@ -182,6 +193,7 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
 
   const returnToLive = () => {
     setSelected(null);
+    setLiveSampleUrl(null);
     setResult(null);
     setError(null);
     setLivePaused(false);
@@ -287,13 +299,24 @@ export function WeedsPage({ capabilities, networked = false, notify, onLeaseLost
                 playsInline
                 muted
                 aria-label="Live phone camera for weed detection"
-                onLoadedMetadata={(event) => setLiveSize({ width: event.currentTarget.videoWidth || 640, height: event.currentTarget.videoHeight || 480 })}
+                onCanPlay={(event) => attachCameraStream(event.currentTarget, streamRef.current)}
+                onLoadedMetadata={(event) => {
+                  attachCameraStream(event.currentTarget, streamRef.current);
+                  setLiveSize({ width: event.currentTarget.videoWidth || 640, height: event.currentTarget.videoHeight || 480 });
+                }}
               />
+              {liveSampleUrl && (
+                <img
+                  src={liveSampleUrl}
+                  alt="Latest analyzed camera sample"
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                />
+              )}
               <div className="weed-boxes" aria-label="Live weed detections">
                 {detections.map((detection, index) => <DetectionBox key={`${detection.weed_class}-${index}`} detection={detection} width={imageWidth} height={imageHeight} />)}
               </div>
               <div className="weed-live-badge" role="status">
-                {livePaused ? "Live scan paused" : result ? "Live · sampled frame" : "Live · waiting for sample"}
+                {livePaused ? "Scan paused · last analyzed frame" : result ? "Analyzed frame · camera sampling" : "Live · waiting for sample"}
               </div>
             </div>
           ) : imageUrl ? (

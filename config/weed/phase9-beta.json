@@ -17,7 +17,7 @@
   "has_objectness": false,
   "output_layout": "features_first",
   "preprocessing": "RGB letterbox to 640x640, float32 values in [0, 1]",
-  "inference_notes": "The release card recommends 3x2 SAHI-style tiles with approximately 12% overlap for small weeds; this service currently analyzes each submitted frame once and reports no species identity.",
+  "inference_notes": "Images larger than the model input use a full-frame pass plus up to six overlapping tiles (3x2 landscape, 2x3 portrait, approximately 12% overlap). Boxes are mapped to the original image and deduplicated with class-aware NMS. Same-class tile fragments with at least 80% parent coverage are suppressed; a 65% fallback requires the tile box and parent to continue across the same tile edge. Invalid or below-threshold parents cannot suppress a tile. Smaller images use one pass. Reports no species identity.",
   "reported_metrics": {
     "source": "release card; not independently reproduced by Botanika",
     "held_out_map50": 0.96,

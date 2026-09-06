@@ -62,7 +62,11 @@ CAMPUS_MODEL_ID = "botanika.campus.mobilenetv2-prototypes"
 CAMPUS_MODEL_VERSION = "campus-fewshot-1.0.0"
 DEFAULT_UNKNOWN_SIMILARITY = 0.62
 DEFAULT_MINIMUM_MARGIN = 0.06
-DEFAULT_PROTOTYPE_WEIGHT = 0.70
+# A prototype is useful as a stable prior, but with only three to six photos
+# per label its mean can land between genuinely different plant appearances.
+# Nearest enrolled-photo similarity preserves distinctive leaf/flower views
+# and was selected from leave-one-out evidence on the current campus index.
+DEFAULT_PROTOTYPE_WEIGHT = 0.10
 DEFAULT_SUGGESTION_LIMIT = 3
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp"})
 
@@ -703,6 +707,7 @@ def _validate_labels(labels: list[Any], dimensions: int, catalog: CampusCatalogV
                 "display_name": display,
                 "catalog_species_id": str(catalog_id) if catalog_id else None,
                 "prototype": _unit(prototype),
+                "sample_count": sample_count,
                 "embeddings": np.asarray([_unit(vector) for vector in embeddings], dtype=np.float32),
                 "samples": sample_entries,
             }
@@ -895,6 +900,12 @@ def _evaluate(labels: Sequence[Mapping[str, Any]], train: Mapping[str, Sequence[
             predicted = names[accepted] if accepted is not None else "__unknown__"
             loo_predictions.append((names[label_index], predicted, float(np.max(scores))))
     loo = _classification_metrics(loo_predictions, names)
+    label_exclusion = _label_exclusion_metrics(
+        labels,
+        samples,
+        prototypes,
+        calibration,
+    )
 
     heldout_predictions: list[tuple[str, str, float]] = []
     for label, records in heldout.items():
@@ -933,6 +944,7 @@ def _evaluate(labels: Sequence[Mapping[str, Any]], train: Mapping[str, Sequence[
         "held_out_observations": len(heldout_predictions),
         "unknown_observations": len(unknown_scores),
         "leave_one_out": loo,
+        "leave_one_label_out_unknown": label_exclusion,
         "held_out": heldout_metrics,
         "macro_f1": heldout_metrics.get("macro_f1"),
         "unknown_rejection_rate": unknown_rate,
@@ -945,6 +957,54 @@ def _evaluate(labels: Sequence[Mapping[str, Any]], train: Mapping[str, Sequence[
             "plant_identity_split_verified": False,
         },
         "deployment_blockers": blockers,
+    }
+
+
+def _label_exclusion_metrics(
+    labels: Sequence[Mapping[str, Any]],
+    samples: Sequence[np.ndarray],
+    prototypes: np.ndarray,
+    calibration: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Measure false accepts when each query's own label is unavailable.
+
+    This is a bounded negative diagnostic, not independent unknown evidence:
+    the queries are still enrollment photographs. It catches a classifier
+    that confidently maps a known label to a different enrolled label when
+    its own class is absent.
+    """
+
+    names = [str(label["display_name"]) for label in labels]
+    observations = 0
+    false_accepts = 0
+    per_label: dict[str, int] = {}
+    for excluded_index, (name, vectors) in enumerate(zip(names, samples)):
+        remaining_samples = [
+            value for index, value in enumerate(samples) if index != excluded_index
+        ]
+        remaining_prototypes = np.delete(prototypes, excluded_index, axis=0)
+        label_false_accepts = 0
+        for query in vectors:
+            observations += 1
+            scores = score_labels(
+                query,
+                remaining_prototypes,
+                remaining_samples,
+                float(calibration["prototype_weight"]),
+            )
+            if accepted_label_index(scores, calibration) is not None:
+                false_accepts += 1
+                label_false_accepts += 1
+        per_label[name] = label_false_accepts
+    return {
+        "observations": observations,
+        "false_accepts": false_accepts,
+        "false_accept_rate": false_accepts / observations if observations else None,
+        "rejection_rate": (
+            (observations - false_accepts) / observations if observations else None
+        ),
+        "per_label_false_accepts": per_label,
+        "note": "Enrollment queries with their own label removed; not independent unknown-image evidence.",
     }
 
 

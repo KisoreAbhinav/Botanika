@@ -136,6 +136,16 @@ class RegionalLibraryTests(unittest.TestCase):
             self.assertEqual(len(groups[0]["locations"]), 3)
             self.assertEqual(len(library.list_locations()), 3)
             self.assertTrue(all(item["directions_url"].startswith("https://www.google.com/maps/dir/") for item in library.list_locations()))
+            self.assertEqual(
+                {
+                    item["directions_url"] for item in library.list_locations()
+                },
+                {
+                    "https://www.google.com/maps/dir/?api=1&destination=12.9200000%2C79.1300000&travelmode=walking&dir_action=navigate",
+                    "https://www.google.com/maps/dir/?api=1&destination=12.9500000%2C79.1600000&travelmode=walking&dir_action=navigate",
+                    "https://www.google.com/maps/dir/?api=1&destination=12.9300000%2C79.1400000&travelmode=walking&dir_action=navigate",
+                },
+            )
 
 
 def _run(capture, request_id: str):

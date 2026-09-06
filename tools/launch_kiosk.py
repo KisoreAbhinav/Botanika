@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 import time
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -45,24 +46,31 @@ def main(argv: list[str] | None = None) -> int:
         ready, detail = readiness(args.ready_url)
         last_detail = detail
         if ready:
-            command = [
-                args.browser,
-                "--kiosk",
-                "--window-size=800,480",
-                "--force-device-scale-factor=1",
-                "--noerrdialogs",
-                "--disable-infobars",
-                "--disable-session-crashed-bubble",
-                args.app_url,
-            ]
-            print(json.dumps({"status": "ready", "readiness": detail, "command": command}))
-            if args.dry_run:
-                return 0
+            profile_dir = Path(tempfile.mkdtemp(prefix="botanika-chromium-"))
             try:
-                return subprocess.call(command)
-            except OSError as exc:
-                print(json.dumps({"status": "error", "detail": str(exc)}))
-                return 1
+                command = [
+                    args.browser,
+                    "--kiosk",
+                    "--window-size=800,480",
+                    "--force-device-scale-factor=1",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--noerrdialogs",
+                    "--disable-infobars",
+                    "--disable-session-crashed-bubble",
+                    f"--user-data-dir={profile_dir}",
+                    args.app_url,
+                ]
+                print(json.dumps({"status": "ready", "readiness": detail, "command": command}))
+                if args.dry_run:
+                    return 0
+                try:
+                    return subprocess.call(command)
+                except OSError as exc:
+                    print(json.dumps({"status": "error", "detail": str(exc)}))
+                    return 1
+            finally:
+                shutil.rmtree(profile_dir, ignore_errors=True)
         time.sleep(max(0.05, args.interval))
     print(json.dumps({"status": "timeout", "detail": last_detail, "ready_url": args.ready_url}))
     return 2
